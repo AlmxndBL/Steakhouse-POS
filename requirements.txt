@@ -1,0 +1,5 @@
+flet>=0.21.0
+sqlalchemy>=2.0.0
+pillow>=10.0.0
+qrcode>=7.4.2
+bcrypt>=4.1.0
