@@ -13,8 +13,11 @@ class PosMainView(ft.View):
         user_name = page.session.store.get("user_name") or "พนักงาน"
 
         self.selected_category_id = None
+        self._cached_net_amount = 0.0
         self.cart_items_list = ft.ListView(expand=True, spacing=10, padding=10)
         self.subtotal_text = ft.Text("0.00 THB", size=18, weight=ft.FontWeight.BOLD)
+        self.sc_text = ft.Text("0.00 THB", size=14)
+        self.vat_text = ft.Text("0.00 THB", size=14)
         self.discount_input = ft.TextField(value="0", label="ส่วนลด (บาท)", width=120, keyboard_type=ft.KeyboardType.NUMBER, on_change=self._on_discount_change)
         self.net_total_text = ft.Text("0.00 THB", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
         self.order_title_text = ft.Text("รายการออเดอร์", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
@@ -63,7 +66,7 @@ class PosMainView(ft.View):
 
         # Left Column: Menu Items
         left_layout = ft.Column(
-            expand=True,
+            col={"sm": 12, "md": 7, "lg": 8},
             spacing=15,
             controls=[
                 ft.Container(content=self.category_row, padding=ft.Padding.only(left=15, top=15, right=15)),
@@ -73,9 +76,9 @@ class PosMainView(ft.View):
 
         # Right Column: Cart & Payment Sidebar
         right_layout = ft.Container(
-            width=420,
+            col={"sm": 12, "md": 5, "lg": 4},
             bgcolor=ft.Colors.WHITE,
-            border=ft.Border.only(left=ft.BorderSide(1, ft.Colors.GREY_300)),
+            border=ft.Border.all(1, ft.Colors.GREY_300),
             padding=20,
             content=ft.Column(
                 expand=True,
@@ -90,15 +93,17 @@ class PosMainView(ft.View):
                         controls=[
                             ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=14), self.subtotal_text]),
                             ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ส่วนลด (Discount):", size=14), self.discount_input]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=14), self.sc_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=14), self.vat_text]),
                             ft.Divider(height=1, color=ft.Colors.GREY_300),
                             ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดชำระสุทธิ:", size=18, weight=ft.FontWeight.BOLD), self.net_total_text]),
                             self.payment_dropdown,
-                            ft.ElevatedButton(
-                                "ชำระเงิน & ออก E-Receipt",
-                                icon=ft.Icons.PAYMENT,
-                                style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=18),
-                                width=380,
-                                on_click=self._handle_checkout
+                            ft.Row(
+                                spacing=10,
+                                controls=[
+                                    ft.ElevatedButton("หารจ่าย", icon=ft.Icons.CALL_SPLIT, style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_600, color=ft.Colors.WHITE, padding=15), expand=1, on_click=self._handle_split_bill),
+                                    ft.ElevatedButton("ชำระเงิน", icon=ft.Icons.PAYMENT, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=15), expand=2, on_click=self._handle_checkout)
+                                ]
                             )
                         ]
                     )
@@ -106,9 +111,8 @@ class PosMainView(ft.View):
             )
         )
 
-        main_body = ft.Row(
+        main_body = ft.ResponsiveRow(
             expand=True,
-            spacing=0,
             controls=[left_layout, right_layout]
         )
 
@@ -290,12 +294,10 @@ class PosMainView(ft.View):
                 self.cart_items_list.controls.append(row)
 
             self.subtotal_text.value = f"{order.subtotal:,.2f} THB"
-            try:
-                discount = float(self.discount_input.value or 0)
-            except ValueError:
-                discount = 0.0
-            net = max(0.0, order.subtotal - discount)
-            self.net_total_text.value = f"{net:,.2f} THB"
+            self.sc_text.value = f"{getattr(order, 'service_charge_amount', 0.0):,.2f} THB"
+            self.vat_text.value = f"{order.vat_amount:,.2f} THB"
+            self.net_total_text.value = f"{order.net_amount:,.2f} THB"
+            self._cached_net_amount = float(order.net_amount)
             try:
                 self.update()
             except Exception:
@@ -337,22 +339,58 @@ class PosMainView(ft.View):
                     discount = float(self.discount_input.value or 0)
                 except ValueError:
                     discount = 0.0
-                net = max(0.0, order.subtotal - discount)
-                self.net_total_text.value = f"{net:,.2f} THB"
-                try:
-                    self.net_total_text.update()
-                except Exception:
-                    pass
+                OrderService._recalculate_order_totals(db, order, discount)
+                db.commit()
+                self._load_cart()
         except:
             pass
         finally:
             db.close()
 
+    def _handle_split_bill(self, e):
+        if not self.order_id:
+            return
+        
+        persons_input = ft.TextField(label="จำนวนคน", value="2", keyboard_type=ft.KeyboardType.NUMBER)
+        result_text = ft.Text("...", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+        
+        def calculate_split(e):
+            try:
+                p = int(persons_input.value)
+                if p > 0:
+                    net = self._cached_net_amount
+                    result_text.value = f"ตกคนละ: {(net / p):,.2f} ฿"
+                    result_text.update()
+            except:
+                pass
+                
+        persons_input.on_change = calculate_split
+        calculate_split(None)
+        
+        def close_dialog(e):
+            dialog.open = False
+            self.page_ref.update()
+            
+        dialog = ft.AlertDialog(
+            title=ft.Text("หารจ่าย (Split Bill)"),
+            content=ft.Column([persons_input, result_text], height=120),
+            actions=[ft.TextButton("ปิด", on_click=close_dialog)]
+        )
+        self.page_ref.overlay.append(dialog)
+        dialog.open = True
+        self.page_ref.update()
+
     def _handle_checkout(self, e):
         if not self.order_id:
             return
         db = SessionLocal()
-        user_id = self.page_ref.session.store.get("user_id") or 1
+        user_id = self.page_ref.session.store.get("user_id")
+        if user_id is None:
+            snack = ft.SnackBar(ft.Text("เกิดข้อผิดพลาด: ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่"), bgcolor=ft.Colors.RED_600)
+            self.page_ref.overlay.append(snack)
+            snack.open = True
+            self.page_ref.update()
+            return
         try:
             try:
                 discount = float(self.discount_input.value or 0)
@@ -400,8 +438,6 @@ class PosMainView(ft.View):
                 self.page_ref.update()
                 # Clear active order and navigate to tables
                 self.page_ref.session.store.remove("active_order_id")
-                self.page_ref.route = "/tables"
-                self.page_ref.update()
                 from utils.navigation import navigate_to
                 navigate_to(self.page_ref, "/tables")
 

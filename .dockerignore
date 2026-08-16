@@ -1,0 +1,16 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.env.*
+pos_data.db
+pos_data.db-shm
+pos_data.db-wal
+.vscode/
+.gemini/

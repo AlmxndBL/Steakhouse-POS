@@ -28,7 +28,7 @@ class ReceiptService:
         """
         width = 440
         header_height = 140
-        item_height = 30 * len(order_data.get("items", []))
+        item_height = 40 * len(order_data.get("items", []))
         footer_height = 220
         total_height = header_height + item_height + footer_height
 
@@ -40,11 +40,18 @@ class ReceiptService:
 
         # Use TrueType Font for Thai Support
         try:
-            font_large = ImageFont.truetype("tahoma.ttf", 20)
-            font_medium = ImageFont.truetype("tahoma.ttf", 16)
-            font_small = ImageFont.truetype("tahoma.ttf", 14)
+            # Fallbacks: try Linux installed font first, then fallback to local tahoma
+            font_path = "/usr/share/fonts/truetype/tlwg/Kinnari.ttf"
+            font_large = ImageFont.truetype(font_path, 20)
+            font_medium = ImageFont.truetype(font_path, 16)
+            font_small = ImageFont.truetype(font_path, 14)
         except IOError:
-            font_large = font_medium = font_small = ImageFont.load_default()
+            try:
+                font_large = ImageFont.truetype("tahoma.ttf", 20)
+                font_medium = ImageFont.truetype("tahoma.ttf", 16)
+                font_small = ImageFont.truetype("tahoma.ttf", 14)
+            except IOError:
+                font_large = font_medium = font_small = ImageFont.load_default()
         
         y = 20
         # Title Header

@@ -1,7 +1,9 @@
 import flet as ft
+import json
 from sqlalchemy import func
 from database.connection import SessionLocal
 from database.models import Order, OrderItem, OrderStatus, MenuItem, RecipeBOM, Ingredient
+from components.ereceipt_modal import EReceiptModal
 from utils.navigation import navigate_to
 
 class ReportsView(ft.View):
@@ -54,6 +56,7 @@ class ReportsView(ft.View):
                 ft.DataColumn(ft.Text("ช่องทางชำระเงิน", weight=ft.FontWeight.BOLD)),
                 ft.DataColumn(ft.Text("ส่วนลด", weight=ft.FontWeight.BOLD)),
                 ft.DataColumn(ft.Text("ยอดรวมสุทธิ", weight=ft.FontWeight.BOLD)),
+                ft.DataColumn(ft.Text("Action", weight=ft.FontWeight.BOLD)),
             ],
             rows=[]
         )
@@ -122,9 +125,9 @@ class ReportsView(ft.View):
         try:
             orders = db.query(Order).filter(Order.status == OrderStatus.PAID).order_by(Order.closed_at.desc()).all()
             
-            total_net = sum(o.net_amount for o in orders)
+            total_net = sum(float(o.net_amount) for o in orders)
             total_count = len(orders)
-            total_disc = sum(o.discount_amount for o in orders)
+            total_disc = sum(float(o.discount_amount) for o in orders)
 
             # Calculate estimated Food Cost %
             menu_items = db.query(MenuItem).filter(MenuItem.is_active == True).all()
@@ -133,9 +136,11 @@ class ReportsView(ft.View):
             for item in menu_items:
                 dish_cost = 0.0
                 for bom in item.recipes:
-                    dish_cost += bom.quantity_required * bom.ingredient.cost_per_unit
-                if item.price > 0:
-                    total_cost_ratio += (dish_cost / item.price) * 100
+                    dish_cost += float(bom.quantity_required) * float(bom.ingredient.cost_per_unit)
+                
+                item_price = float(item.price)
+                if item_price > 0:
+                    total_cost_ratio += (dish_cost / item_price) * 100
                     valid_ratio_count += 1
 
             avg_food_cost = (total_cost_ratio / valid_ratio_count) if valid_ratio_count > 0 else 32.5
@@ -157,7 +162,15 @@ class ReportsView(ft.View):
                         ft.DataCell(ft.Text(o.order_type.value)),
                         ft.DataCell(ft.Text(o.payment_method or "เงินสด")),
                         ft.DataCell(ft.Text(f"{o.discount_amount:,.2f} ฿")),
-                        ft.DataCell(ft.Text(f"{o.net_amount:,.2f} ฿", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700))
+                        ft.DataCell(ft.Text(f"{o.net_amount:,.2f} ฿", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)),
+                        ft.DataCell(
+                            ft.IconButton(
+                                ft.Icons.RECEIPT,
+                                icon_color=ft.Colors.BLUE_600,
+                                tooltip="ดูใบเสร็จ",
+                                on_click=lambda e, order=o: self._show_receipt(order)
+                            )
+                        )
                     ]
                 )
                 self.sales_table.rows.append(row)
@@ -166,5 +179,53 @@ class ReportsView(ft.View):
                 self.update()
             except Exception:
                 pass
+        finally:
+            db.close()
+
+    def _show_receipt(self, detached_order: Order):
+        db = SessionLocal()
+        try:
+            # Re-query order within active session to allow lazy loading of .items
+            order = db.query(Order).filter(Order.id == detached_order.id).first()
+            if not order:
+                return
+
+            items_data = []
+            for item in order.items:
+                opt_str = ""
+                if item.options_json:
+                    try:
+                        opts = json.loads(item.options_json)
+                        opt_str = f" ({opts.get('doneness', '')}, {opts.get('sauce', '')})"
+                    except:
+                        pass
+                items_data.append({
+                    "name": f"{item.menu_item.name}{opt_str}",
+                    "qty": item.quantity,
+                    "price": item.price_per_unit,
+                    "total": item.price_per_unit * item.quantity
+                })
+
+            receipt_payload = {
+                "order_number": order.order_number,
+                "created_at": order.created_at.strftime("%Y-%m-%d %H:%M:%S") if order.created_at else "-",
+                "order_type": order.order_type.value if hasattr(order.order_type, "value") else str(order.order_type),
+                "table_or_customer": order.customer_name,
+                "items": items_data,
+                "subtotal": order.subtotal,
+                "discount": order.discount_amount,
+                "net_total": order.net_amount,
+                "payment_method": order.payment_method or "เงินสด"
+            }
+
+            modal = EReceiptModal(order_data=receipt_payload, page=self.page_ref)
+            modal.title = ft.Text("ประวัติใบเสร็จรับเงิน", weight=ft.FontWeight.BOLD)
+            
+            try:
+                self.page_ref.overlay.append(modal)
+                modal.open = True
+                self.page_ref.update()
+            except Exception as e:
+                print(f"Failed to show receipt modal: {e}")
         finally:
             db.close()

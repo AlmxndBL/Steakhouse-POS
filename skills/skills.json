@@ -3,7 +3,8 @@
   "repositories": [
     "https://github.com/mattpocock/skills",
     "https://github.com/jirayu-ct-dev/9arm-skills",
-    "https://github.com/shadcn-ui/ui-skills"
+    "https://github.com/shadcn-ui/ui-skills",
+    "https://github.com/AlmxndBL/agent-skill"
   ],
   "exclude": [
     "andrej-karpathy-skills"

@@ -41,6 +41,9 @@ def main(page: ft.Page):
             page.views.append(TableMapView(page))
         elif route == "/pos":
             page.views.append(PosMainView(page))
+        elif route == "/kds":
+            from views.kds_view import KdsView
+            page.views.append(KdsView(page))
         elif route == "/stock":
             page.views.append(StockView(page))
         elif route == "/reports":
@@ -66,4 +69,11 @@ def main(page: ft.Page):
     navigate_to(page, "/login")
 
 if __name__ == "__main__":
-    ft.run(main)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    if os.environ.get("DOCKER_ENV"):
+        # Web server mode for Docker
+        ft.run(main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")
+    else:
+        # Desktop app mode
+        ft.run(main, view=ft.AppView.FLET_APP, port=port)

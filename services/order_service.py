@@ -32,8 +32,8 @@ class OrderService:
                 if existing_order:
                     return existing_order
 
-        # Create new order
-        order_num = f"ORD-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+        # Create new order — use 8 hex chars (4 billion combos) to avoid collisions
+        order_num = f"ORD-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
         order = Order(
             order_number=order_num,
             table_id=table_id if order_type == OrderType.DINE_IN else None,
@@ -78,11 +78,11 @@ class OrderService:
                 for opt_name in opts.values():
                     mod_opt = db.query(ModifierOption).filter(ModifierOption.name == opt_name).first()
                     if mod_opt and mod_opt.extra_price:
-                        extra_price += mod_opt.extra_price
-            except Exception:
-                pass
+                        extra_price += float(mod_opt.extra_price)
+            except Exception as e:
+                print(f"[WARN] Failed to parse options_json for pricing: {e}")
 
-        unit_price = menu_item.price + extra_price
+        unit_price = float(menu_item.price) + extra_price
 
         item = OrderItem(
             order_id=order.id,
@@ -115,14 +115,29 @@ class OrderService:
         return True
 
     @staticmethod
-    def _recalculate_order_totals(db: Session, order: Order, discount: float = 0.0):
+    def _recalculate_order_totals(db: Session, order: Order, discount=None):
+        """Recalculate order totals. If discount is None, preserves existing discount."""
         subtotal = 0.0
         for item in order.items:
-            subtotal += item.price_per_unit * item.quantity
+            subtotal += float(item.price_per_unit) * item.quantity
 
         order.subtotal = subtotal
-        order.discount_amount = discount
-        order.net_amount = max(0.0, subtotal - discount)
+        
+        # Preserve existing discount if not explicitly passed
+        if discount is not None:
+            order.discount_amount = max(0.0, min(float(discount), subtotal))  # Clamp: 0 ≤ discount ≤ subtotal
+        
+        disc = float(order.discount_amount or 0.0)
+        sub_after_disc = max(0.0, subtotal - disc)
+        
+        # 10% Service Charge
+        order.service_charge_amount = round(sub_after_disc * 0.10, 2)
+        
+        # 7% VAT (Exclude VAT logic: calculate on subtotal + SC)
+        sc = float(order.service_charge_amount)
+        order.vat_amount = round((sub_after_disc + sc) * 0.07, 2)
+        
+        order.net_amount = round(sub_after_disc + sc + float(order.vat_amount), 2)
 
     @staticmethod
     def checkout_order(
@@ -133,8 +148,8 @@ class OrderService:
         user_id: int
     ) -> Order:
         order = db.query(Order).filter(Order.id == order_id).first()
-        if not order or order.status == OrderStatus.PAID:
-            raise ValueError("สถานะบิลไม่ถูกต้องสำหรับชำระเงิน")
+        if not order or order.status != OrderStatus.OPEN:
+            raise ValueError("สถานะบิลไม่ถูกต้องสำหรับชำระเงิน (ต้องเป็น OPEN เท่านั้น)")
 
         if not order.items or len(order.items) == 0:
             raise ValueError("ไม่สามารถชำระเงินบิลว่างได้ กรุณาเลือกรายการอาหารก่อน")
@@ -161,7 +176,11 @@ class OrderService:
             action="CHECKOUT_ORDER",
             target_type="Order",
             target_id=order.id,
-            details_json=f'{{"order_number": "{order.order_number}", "amount": {order.net_amount}, "payment": "{payment_method}"}}'
+            details_json=json.dumps({
+                "order_number": order.order_number,
+                "amount": float(order.net_amount),
+                "payment": payment_method
+            }, ensure_ascii=False)
         )
         db.add(audit)
         db.commit()

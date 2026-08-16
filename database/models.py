@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, DateTime, Date, Text, ForeignKey, Enum as SQLEnum
+    Column, Integer, String, Float, Boolean, DateTime, Date, Text, ForeignKey, Enum as SQLEnum, Numeric
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -82,7 +82,7 @@ class MenuItem(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     code = Column(String(50), unique=True, nullable=False)
     name = Column(String(100), nullable=False)
-    price = Column(Float, nullable=False)
+    price = Column(Numeric(10, 2), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
 
@@ -104,7 +104,7 @@ class ModifierOption(Base):
     id = Column(Integer, primary_key=True, index=True)
     group_id = Column(Integer, ForeignKey("modifier_groups.id"), nullable=False)
     name = Column(String(100), nullable=False)
-    extra_price = Column(Float, default=0.0)
+    extra_price = Column(Numeric(10, 2), default=0.0)
 
     group = relationship("ModifierGroup", back_populates="options")
 
@@ -115,8 +115,8 @@ class Ingredient(Base):
     code = Column(String(50), unique=True, nullable=False)
     name = Column(String(100), nullable=False)
     unit = Column(String(20), nullable=False)
-    min_stock_alert = Column(Float, default=100.0)
-    cost_per_unit = Column(Float, default=0.0)
+    min_stock_alert = Column(Numeric(10, 2), default=100.0)
+    cost_per_unit = Column(Numeric(10, 2), default=0.0)
     is_active = Column(Boolean, default=True)
 
     recipes = relationship("RecipeBOM", back_populates="ingredient")
@@ -128,7 +128,7 @@ class RecipeBOM(Base):
     id = Column(Integer, primary_key=True, index=True)
     menu_item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False)
     ingredient_id = Column(Integer, ForeignKey("ingredients.id"), nullable=False)
-    quantity_required = Column(Float, nullable=False)
+    quantity_required = Column(Numeric(10, 4), nullable=False)
     unit = Column(String(20), nullable=False)
 
     menu_item = relationship("MenuItem", back_populates="recipes")
@@ -140,9 +140,9 @@ class StockLot(Base):
     id = Column(Integer, primary_key=True, index=True)
     ingredient_id = Column(Integer, ForeignKey("ingredients.id"), nullable=False)
     lot_number = Column(String(50), nullable=False)
-    initial_quantity = Column(Float, nullable=False)
-    remaining_quantity = Column(Float, nullable=False)
-    unit_cost = Column(Float, nullable=False, default=0.0)
+    initial_quantity = Column(Numeric(10, 4), nullable=False)
+    remaining_quantity = Column(Numeric(10, 4), nullable=False)
+    unit_cost = Column(Numeric(10, 2), nullable=False, default=0.0)
     expiry_date = Column(Date, nullable=True)
     received_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_depleted = Column(Boolean, default=False)
@@ -159,10 +159,11 @@ class Order(Base):
     order_type = Column(SQLEnum(OrderType), default=OrderType.DINE_IN)
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.OPEN)
     customer_name = Column(String(100), nullable=True)
-    subtotal = Column(Float, default=0.0)
-    discount_amount = Column(Float, default=0.0)
-    vat_amount = Column(Float, default=0.0)
-    net_amount = Column(Float, default=0.0)
+    subtotal = Column(Numeric(10, 2), default=0.0)
+    discount_amount = Column(Numeric(10, 2), default=0.0)
+    service_charge_amount = Column(Numeric(10, 2), default=0.0)
+    vat_amount = Column(Numeric(10, 2), default=0.0)
+    net_amount = Column(Numeric(10, 2), default=0.0)
     payment_method = Column(String(50), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -180,7 +181,7 @@ class OrderItem(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     menu_item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False)
     quantity = Column(Integer, default=1)
-    price_per_unit = Column(Float, nullable=False)
+    price_per_unit = Column(Numeric(10, 2), nullable=False)
     options_json = Column(Text, nullable=True)
     item_status = Column(SQLEnum(OrderItemStatus), default=OrderItemStatus.PENDING)
     notes = Column(String(255), nullable=True)
@@ -195,7 +196,7 @@ class StockTransaction(Base):
     lot_id = Column(Integer, ForeignKey("stock_lots.id"), nullable=False)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
     tx_type = Column(SQLEnum(StockTxType), nullable=False)
-    quantity = Column(Float, nullable=False)
+    quantity = Column(Numeric(10, 4), nullable=False)
     reason = Column(String(255), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))

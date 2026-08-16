@@ -6,18 +6,24 @@ class TableCard(ft.Container):
         self.table = table
         self.on_click_callback = on_click
 
-        if table.status == TableStatus.VACANT:
+        status_val = getattr(table.status, "value", table.status)
+
+        if status_val == "VACANT":
             bg_color = ft.Colors.GREEN_50
             border_color = ft.Colors.GREEN_500
             status_text = "ว่าง (Vacant)"
             status_color = ft.Colors.GREEN_700
             icon = ft.Icons.CHECK_CIRCLE
-        elif table.status == TableStatus.OCCUPIED:
+        elif status_val == "OCCUPIED":
             bg_color = ft.Colors.AMBER_50
             border_color = ft.Colors.AMBER_700
             
             # Fetch net amount from current order if available
-            net_amt = table.current_order.net_amount if table.current_order else 0.0
+            try:
+                net_amt = table.current_order.net_amount if table.current_order else 0.0
+            except Exception:
+                net_amt = 0.0
+                
             status_text = f"มีลูกค้า ({net_amt:,.2f} ฿)"
             status_color = ft.Colors.AMBER_900
             icon = ft.Icons.RESTAURANT
