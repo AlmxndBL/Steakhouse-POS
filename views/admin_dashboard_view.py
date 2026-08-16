@@ -257,6 +257,8 @@ class AdminDashboardView(ft.View):
                 bgcolor=ft.Colors.WHITE,
                 padding=24,
                 border_radius=14,
+                ink=True,
+                on_click=on_click,
                 content=ft.Column(
                     spacing=14,
                     controls=[

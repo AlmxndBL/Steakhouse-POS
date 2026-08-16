@@ -336,47 +336,24 @@ class PosMainView(ft.View):
         finally:
             db.close()
 
-    def _remove_item(self, item_id: int):
+    def _remove_item(self, order_item_id: int):
         db = SessionLocal()
         try:
-            OrderService.remove_item(db, item_id)
+            OrderService.remove_item_from_order(db, order_item_id)
             self._load_cart()
         finally:
             db.close()
 
-    def _update_item_qty(self, item_id: int, delta: int):
+    def _update_item_qty(self, order_item_id: int, delta: int):
         db = SessionLocal()
         try:
-            from database.models import OrderItem
-            item = db.query(OrderItem).filter(OrderItem.id == item_id).first()
-            if item:
-                if item.quantity + delta > 0:
-                    item.quantity += delta
-                    # Recalculate totals
-                    OrderService._recalculate_order_totals(db, item.order)
-                    db.commit()
-                else:
-                    OrderService.remove_item(db, item_id)
+            OrderService.update_item_quantity(db, order_item_id, delta)
             self._load_cart()
         finally:
             db.close()
 
     def _on_discount_change(self, e):
-        db = SessionLocal()
-        try:
-            order = db.query(Order).filter(Order.id == self.order_id).first()
-            if order:
-                try:
-                    discount = float(self.discount_input.value or 0)
-                except ValueError:
-                    discount = 0.0
-                OrderService._recalculate_order_totals(db, order, discount)
-                db.commit()
-                self._load_cart()
-        except:
-            pass
-        finally:
-            db.close()
+        self._calculate_totals()
 
     def _handle_split_bill(self, e):
         if not self.order_id:
@@ -391,25 +368,22 @@ class PosMainView(ft.View):
                 if p > 0:
                     net = self._cached_net_amount
                     result_text.value = f"ตกคนละ: {(net / p):,.2f} ฿"
-                    result_text.update()
+                    try:
+                        result_text.update()
+                    except Exception:
+                        pass
             except:
                 pass
                 
         persons_input.on_change = calculate_split
         calculate_split(None)
         
-        def close_dialog(e):
-            dialog.open = False
-            self.page_ref.update()
-            
         dialog = ft.AlertDialog(
             title=ft.Text("หารจ่าย (Split Bill)"),
-            content=ft.Column([persons_input, result_text], height=120),
-            actions=[ft.TextButton("ปิด", on_click=close_dialog)]
+            content=ft.Column([persons_input, result_text], height=120)
         )
-        self.page_ref.overlay.append(dialog)
-        dialog.open = True
-        self.page_ref.update()
+        dialog.actions = [ft.TextButton("ปิด", on_click=lambda e: self._close_dialog(dialog))]
+        self._open_dialog(dialog)
 
     def _handle_checkout(self, e):
         if not self.order_id:
@@ -417,9 +391,7 @@ class PosMainView(ft.View):
         db = SessionLocal()
         user_id = self.page_ref.session.store.get("user_id")
         if user_id is None:
-            snack = ft.SnackBar(ft.Text("เกิดข้อผิดพลาด: ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่"), bgcolor=ft.Colors.RED_600)
-            self.page_ref.overlay.append(snack)
-            snack.open = True
+            self.page_ref.snack_bar = ft.SnackBar(ft.Text("เกิดข้อผิดพลาด: ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่"), bgcolor=ft.Colors.RED_600, open=True)
             self.page_ref.update()
             return
         try:
@@ -445,19 +417,19 @@ class PosMainView(ft.View):
                 items_data.append({
                     "name": f"{item.menu_item.name}{opt_str}",
                     "qty": item.quantity,
-                    "price": item.price_per_unit,
-                    "total": item.price_per_unit * item.quantity
+                    "price": float(item.price_per_unit),
+                    "total": float(item.price_per_unit) * item.quantity
                 })
 
             receipt_payload = {
                 "order_number": order.order_number,
-                "created_at": order.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                "order_type": order.order_type.value,
+                "created_at": order.created_at.strftime("%Y-%m-%d %H:%M:%S") if order.created_at else "",
+                "order_type": order.order_type.value if hasattr(order.order_type, "value") else str(order.order_type),
                 "table_or_customer": order.customer_name,
                 "items": items_data,
-                "subtotal": order.subtotal,
-                "discount": order.discount_amount,
-                "net_total": order.net_amount,
+                "subtotal": float(order.subtotal),
+                "discount": float(order.discount_amount),
+                "net_total": float(order.net_amount),
                 "payment_method": payment_method
             }
 
@@ -465,8 +437,7 @@ class PosMainView(ft.View):
             modal = EReceiptModal(order_data=receipt_payload, page=self.page_ref)
             
             def close_and_redirect(e):
-                modal.open = False
-                self.page_ref.update()
+                self._close_dialog(modal)
                 # Clear active order and navigate to tables
                 self.page_ref.session.store.remove("active_order_id")
                 from utils.navigation import navigate_to
@@ -476,25 +447,51 @@ class PosMainView(ft.View):
             if hasattr(modal, "actions") and modal.actions:
                 modal.actions[0].on_click = close_and_redirect
 
-            try:
-                self.page_ref.overlay.append(modal)
-                modal.open = True
-                self.page_ref.update()
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                print(f"Failed to append modal to overlay: {e}")
+            self._open_dialog(modal)
 
         except Exception as err:
             import traceback
             traceback.print_exc()
-            print(f"CRITICAL ERROR IN CHECKOUT: {err}")
-            snack = ft.SnackBar(ft.Text(f"เกิดข้อผิดพลาดในการคิดเงิน: {err}"), bgcolor=ft.Colors.RED_600)
-            self.page_ref.overlay.append(snack)
-            snack.open = True
+            self.page_ref.snack_bar = ft.SnackBar(ft.Text(f"เกิดข้อผิดพลาดในการคิดเงิน: {err}"), bgcolor=ft.Colors.RED_600, open=True)
             try:
                 self.page_ref.update()
-            except Exception as inner_err:
-                print(f"Failed to show snackbar: {inner_err}")
+            except Exception:
+                pass
         finally:
             db.close()
+
+    def _open_dialog(self, dialog: ft.AlertDialog):
+        try:
+            if hasattr(self.page_ref, "show_dialog"):
+                self.page_ref.show_dialog(dialog)
+            elif hasattr(self.page_ref, "open"):
+                self.page_ref.open(dialog)
+            else:
+                self.page_ref.overlay.append(dialog)
+                dialog.open = True
+                self.page_ref.update()
+        except Exception:
+            try:
+                self.page_ref.overlay.append(dialog)
+                dialog.open = True
+                self.page_ref.update()
+            except Exception:
+                pass
+
+    def _close_dialog(self, dialog: ft.AlertDialog = None):
+        try:
+            if hasattr(self.page_ref, "pop_dialog"):
+                self.page_ref.pop_dialog()
+            elif hasattr(self.page_ref, "close"):
+                self.page_ref.close(dialog)
+            elif dialog is not None:
+                dialog.open = False
+                self.page_ref.update()
+        except Exception:
+            if dialog is not None:
+                dialog.open = False
+                try:
+                    self.page_ref.update()
+                except Exception:
+                    pass
+

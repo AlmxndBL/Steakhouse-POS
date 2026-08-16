@@ -595,9 +595,8 @@ class ReportsView(ft.View):
                 "payment_method": order.payment_method or "เงินสด"
             }
 
-            b64_img = ReceiptService.generate_ereceipt_image_base64(payload)
-            modal = EReceiptModal(self.page_ref, payload, b64_img)
-            modal.show()
+            modal = EReceiptModal(order_data=payload, page=self.page_ref)
+            self._open_dialog(modal)
         finally:
             db.close()
 
