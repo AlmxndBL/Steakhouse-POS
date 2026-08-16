@@ -602,35 +602,99 @@ class ReportsView(ft.View):
             db.close()
 
     def _handle_export_csv(self, e):
+        import os
+        import urllib.parse
+        from datetime import datetime
+        
         db = SessionLocal()
         try:
             csv_content = ReportService.generate_sales_csv(db, period=self.current_period)
             
+            # 1. Save to local / exports folder with UTF-8 BOM for Thai Excel support
+            exports_dir = os.path.join(os.getcwd(), "exports")
+            os.makedirs(exports_dir, exist_ok=True)
+            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"sales_report_{self.current_period}_{timestamp_str}.csv"
+            filepath = os.path.join(exports_dir, filename)
+            
+            with open(filepath, "w", encoding="utf-8-sig") as f:
+                f.write(csv_content)
+
+            # 2. Prepare Data URI for browser download
+            encoded_csv = urllib.parse.quote("\ufeff" + csv_content)
+            data_uri = f"data:text/csv;charset=utf-8,{encoded_csv}"
+
+            def copy_to_clipboard(e_copy):
+                try:
+                    self.page_ref.clipboard = csv_content
+                except Exception:
+                    pass
+                self.page_ref.snack_bar = ft.SnackBar(
+                    content=ft.Text("📋 คัดลอกข้อมูล CSV สำเร็จ! นำไปวางใน Excel หรือ Google Sheets ได้ทันที", color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.GREEN_700,
+                    open=True
+                )
+                self.page_ref.update()
+
+            def trigger_download(e_down):
+                try:
+                    self.page_ref.launch_url(data_uri)
+                except Exception:
+                    pass
+
             dialog = ft.AlertDialog(
-                title=ft.Text("ส่งออกข้อมูลรายงานสำเร็จ (CSV Export)", weight=ft.FontWeight.BOLD),
+                title=ft.Row([
+                    ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_600, size=24),
+                    ft.Text("ส่งออกข้อมูลรายงานสำเร็จ (CSV Export)", weight=ft.FontWeight.BOLD, size=16)
+                ]),
                 content=ft.Container(
-                    width=450,
+                    width=520,
                     content=ft.Column(
-                        spacing=10,
+                        spacing=12,
                         tight=True,
                         controls=[
-                            ft.Text("ข้อมูลยอดขายและต้นทุนถูกแปลงเป็น CSV เรียบร้อยแล้ว:"),
+                            ft.Text("ไฟล์รายงานยอดขายและต้นทุนถูกบันทึกเรียบร้อยแล้ว รองรับภาษาไทย 100% ใน Excel:", size=13),
+                            ft.Container(
+                                bgcolor=ft.Colors.BLUE_50,
+                                padding=10,
+                                border_radius=8,
+                                content=ft.Row([
+                                    ft.Icon(ft.Icons.FOLDER_OPEN, color=ft.Colors.BLUE_800, size=18),
+                                    ft.Text(f"บันทึกไฟล์ไว้ที่: exports/{filename}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900)
+                                ])
+                            ),
+                            ft.Text("ตัวอย่างข้อมูล (Preview):", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
                             ft.Container(
                                 bgcolor=ft.Colors.GREY_100,
-                                padding=12,
+                                padding=10,
                                 border_radius=8,
-                                content=ft.Text(csv_content[:300] + "\n...", size=11, font_family="monospace")
+                                height=120,
+                                content=ft.ListView([
+                                    ft.Text(csv_content, size=11, font_family="monospace")
+                                ])
                             )
                         ]
                     )
                 ),
                 actions=[
-                    ft.ElevatedButton("ปิด", on_click=lambda e: self._close_dialog(dialog))
+                    ft.OutlinedButton(
+                        "📋 คัดลอกข้อมูล (Copy)",
+                        icon=ft.Icons.CONTENT_COPY,
+                        on_click=copy_to_clipboard
+                    ),
+                    ft.ElevatedButton(
+                        "📥 ดาวน์โหลดไฟล์ (Download)",
+                        icon=ft.Icons.DOWNLOAD,
+                        style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+                        on_click=trigger_download
+                    ),
+                    ft.TextButton("ปิด", on_click=lambda e: self._close_dialog(dialog))
                 ]
             )
             self._open_dialog(dialog)
         finally:
             db.close()
+
 
     def _open_dialog(self, dialog: ft.AlertDialog):
         try:
