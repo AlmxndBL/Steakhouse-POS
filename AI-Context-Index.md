@@ -107,7 +107,20 @@ docker-compose up -d --build
 # เข้าใช้งานผ่าน Web Browser: http://localhost:8000
 ```
 
-### 🧪 รัน Master Sandbox Test Suite (16/16 Passed):
+### 🧪 รัน Master Sandbox Test Suite (17/17 Passed 100%):
 ```bash
 docker-compose exec -e PYTHONPATH=/app -T app python tests/run_all_tests.py
 ```
+
+---
+
+## 📌 6. สถานะงานปัจจุบันและสิ่งที่ต้องทำต่อในรอบถัดไป (Pending Tasks & Next Steps)
+
+- **สถานะระบบปัจจุบัน:** ฟังก์ชันหลักทั้งหมด (Auth, RBAC, Back-office, POS, KDS, Stock BOM, Reports, Sandbox Tests 17/17) ทำงานสมบูรณ์
+- **📋 ประเด็นที่ค้างอยู่ (Pending Issue for Next Session):**
+  - **ปัญหา:** ปุ่ม *"📥 ดาวน์โหลดไฟล์ (Download)"* บนโมดอล Export CSV ในหน้ารายงาน (`/admin/reports`) เมื่อรันผ่าน Web Browser (Docker) ยังไม่สามารถทริกเกอร์ให้ Browser โหลดไฟล์ลงเครื่อง Client ได้ทันที
+  - **การทำงานปัจจุบัน:** ไฟล์ถูกเซฟลงโฟลเดอร์ `exports/` บน Server เรียบร้อยแล้ว และสามารถใช้ปุ่ม *"📋 คัดลอกข้อมูล"* นำไปวางใน Excel / Sheets ได้ แต่ปุ่มดาวน์โหลดตรงผ่านบราวเซอร์ยังต้องปรับปรุง
+  - **แนวทางแก้ไขในรอบหน้า (Action Plan):**
+    1. ทำ REST API Endpoint ดาวน์โหลดไฟล์ตรง เช่น `/api/download/{filename}` โดยใช้ FastAPI `FileResponse(..., headers={"Content-Disposition": "attachment; filename=..."})`
+    2. หรือใช้ JavaScript Blob Download Trigger ผ่าน `page.run_javascript(...)`
+
