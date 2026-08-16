@@ -603,14 +603,13 @@ class ReportsView(ft.View):
 
     def _handle_export_csv(self, e):
         import os
-        import urllib.parse
         from datetime import datetime
         
         db = SessionLocal()
         try:
             csv_content = ReportService.generate_sales_csv(db, period=self.current_period)
             
-            # 1. Save to local / exports folder with UTF-8 BOM for Thai Excel support
+            # 1. Save to exports folder with UTF-8 BOM for Thai Excel support
             exports_dir = os.path.join(os.getcwd(), "exports")
             os.makedirs(exports_dir, exist_ok=True)
             timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -620,25 +619,41 @@ class ReportsView(ft.View):
             with open(filepath, "w", encoding="utf-8-sig") as f:
                 f.write(csv_content)
 
-            # 2. Prepare Data URI for browser download
-            encoded_csv = urllib.parse.quote("\ufeff" + csv_content)
-            data_uri = f"data:text/csv;charset=utf-8,{encoded_csv}"
+            # Download URL served statically by Flet assets_dir
+            download_url = f"/{filename}"
+
+            btn_copy = ft.OutlinedButton(
+                "📋 คัดลอกข้อมูล (Copy)",
+                icon=ft.Icons.CONTENT_COPY
+            )
 
             def copy_to_clipboard(e_copy):
                 try:
                     self.page_ref.clipboard = csv_content
                 except Exception:
                     pass
-                self.page_ref.snack_bar = ft.SnackBar(
-                    content=ft.Text("📋 คัดลอกข้อมูล CSV สำเร็จ! นำไปวางใน Excel หรือ Google Sheets ได้ทันที", color=ft.Colors.WHITE),
-                    bgcolor=ft.Colors.GREEN_700,
-                    open=True
-                )
-                self.page_ref.update()
+                btn_copy.text = "✅ คัดลอกสำเร็จแล้ว!"
+                btn_copy.icon = ft.Icons.CHECK
+                try:
+                    btn_copy.update()
+                except Exception:
+                    pass
+
+                try:
+                    self.page_ref.snack_bar = ft.SnackBar(
+                        content=ft.Text("📋 คัดลอกข้อมูล CSV สำเร็จ! นำไปวางใน Excel หรือ Google Sheets ได้ทันที", color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.GREEN_700,
+                        open=True
+                    )
+                    self.page_ref.update()
+                except Exception:
+                    pass
+
+            btn_copy.on_click = copy_to_clipboard
 
             def trigger_download(e_down):
                 try:
-                    self.page_ref.launch_url(data_uri)
+                    self.page_ref.launch_url(download_url, web_window_name="_blank")
                 except Exception:
                     pass
 
@@ -663,25 +678,22 @@ class ReportsView(ft.View):
                                     ft.Text(f"บันทึกไฟล์ไว้ที่: exports/{filename}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900)
                                 ])
                             ),
-                            ft.Text("ตัวอย่างข้อมูล (Preview):", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
-                            ft.Container(
+                            ft.Text("ข้อมูล CSV (สามารถเลือกคลุมดำและคัดลอกได้โดยตรง):", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
+                            ft.TextField(
+                                value=csv_content,
+                                multiline=True,
+                                min_lines=5,
+                                max_lines=7,
+                                read_only=True,
+                                text_size=11,
                                 bgcolor=ft.Colors.GREY_100,
-                                padding=10,
-                                border_radius=8,
-                                height=120,
-                                content=ft.ListView([
-                                    ft.Text(csv_content, size=11, font_family="monospace")
-                                ])
+                                border_color=ft.Colors.GREY_300
                             )
                         ]
                     )
                 ),
                 actions=[
-                    ft.OutlinedButton(
-                        "📋 คัดลอกข้อมูล (Copy)",
-                        icon=ft.Icons.CONTENT_COPY,
-                        on_click=copy_to_clipboard
-                    ),
+                    btn_copy,
                     ft.ElevatedButton(
                         "📥 ดาวน์โหลดไฟล์ (Download)",
                         icon=ft.Icons.DOWNLOAD,
@@ -694,6 +706,7 @@ class ReportsView(ft.View):
             self._open_dialog(dialog)
         finally:
             db.close()
+
 
 
     def _open_dialog(self, dialog: ft.AlertDialog):

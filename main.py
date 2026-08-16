@@ -87,9 +87,12 @@ def main(page: ft.Page):
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 8000))
+    exports_path = os.path.join(os.getcwd(), "exports")
+    os.makedirs(exports_path, exist_ok=True)
     if os.environ.get("DOCKER_ENV"):
-        # Web server mode for Docker
-        ft.run(main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")
+        # Web server mode for Docker with exports asset directory for instant file downloads
+        ft.run(main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0", assets_dir=exports_path)
     else:
         # Desktop app mode
-        ft.run(main, view=ft.AppView.FLET_APP, port=port)
+        ft.run(main, view=ft.AppView.FLET_APP, port=port, assets_dir=exports_path)
+
