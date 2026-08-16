@@ -27,7 +27,7 @@ class ReportsView(ft.View):
                         spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("📊 รายงานยอดขาย & กราฟวิเคราะห์การเงิน (Visual Analytics Dashboard)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                            ft.Text("📊 รายงานยอดขาย & วิเคราะห์การเงิน (Visual Analytics Dashboard)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
                     ft.ElevatedButton(
@@ -46,7 +46,11 @@ class ReportsView(ft.View):
         )
 
         # Date Filter Bar
-        self.btn_today = ft.ElevatedButton("🔘 วันนี้ (Today)", style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_900, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=8)), on_click=lambda e: self._change_period("today"))
+        self.btn_today = ft.ElevatedButton(
+            "🔘 วันนี้ (Today)",
+            style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_900, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=8)),
+            on_click=lambda e: self._change_period("today")
+        )
         self.btn_7days = ft.OutlinedButton("7 วันล่าสุด (7 Days)", on_click=lambda e: self._change_period("7days"))
         self.btn_month = ft.OutlinedButton("เดือนนี้ (This Month)", on_click=lambda e: self._change_period("month"))
         self.btn_all = ft.OutlinedButton("ทั้งหมด (All Time)", on_click=lambda e: self._change_period("all"))
@@ -95,24 +99,11 @@ class ReportsView(ft.View):
             ]
         )
 
-        # Chart 1: 7-Day Daily Trend Bar Chart
-        self.bar_chart = ft.BarChart(
-            bar_groups=[],
-            border=ft.border.all(1, ft.Colors.GREY_300),
-            left_axis=ft.ChartAxis(
-                labels_size=40,
-                title=ft.Text("ยอดขาย (บาท)", size=11, color=ft.Colors.GREY_600)
-            ),
-            bottom_axis=ft.ChartAxis(
-                labels_size=32,
-            ),
-            horizontal_grid_lines=ft.ChartGridLines(
-                color=ft.Colors.GREY_200, width=1, dash_pattern=[3, 3]
-            ),
-            tooltip_bgcolor=ft.Colors.BLUE_GREY_900,
-            max_y=1000,
-            interactive=True,
-            expand=True
+        # Visual Chart 1: 7-Day Trend Container Bar Chart
+        self.trend_bars_row = ft.Row(
+            spacing=16,
+            alignment=ft.MainAxisAlignment.SPACE_EVENLY,
+            vertical_alignment=ft.CrossAxisAlignment.END
         )
 
         self.chart_trend_card = ft.Card(
@@ -134,27 +125,21 @@ class ReportsView(ft.View):
                                         ft.Text("📈 แนวโน้มยอดขาย 7 วันล่าสุด (7-Day Sales Trend)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                                     ]
                                 ),
-                                ft.Text("แท่งกราฟแสดงยอดขายแต่ละวัน", size=12, color=ft.Colors.GREY_600)
+                                ft.Text("กราฟแท่งเปรียบเทียบยอดขายรายวัน", size=12, color=ft.Colors.GREY_600)
                             ]
                         ),
                         ft.Container(
-                            height=220,
-                            padding=ft.Padding.only(top=10, right=15),
-                            content=self.bar_chart
+                            height=200,
+                            padding=ft.Padding.symmetric(vertical=10),
+                            content=self.trend_bars_row
                         )
                     ]
                 )
             )
         )
 
-        # Chart 2: Category Share Pie Chart
-        self.category_pie_chart = ft.PieChart(
-            sections=[],
-            sections_space=3,
-            center_space_radius=40,
-            expand=True
-        )
-        self.category_legend_col = ft.Column(spacing=8, alignment=ft.MainAxisAlignment.CENTER)
+        # Visual Chart 2: Category Share Visual Progress Bars
+        self.category_bars_col = ft.Column(spacing=12)
 
         self.chart_category_card = ft.Card(
             elevation=2,
@@ -172,27 +157,14 @@ class ReportsView(ft.View):
                                 ft.Text("🥧 สัดส่วนยอดขายตามหมวดหมู่อาหาร (Category Share)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                             ]
                         ),
-                        ft.Row(
-                            alignment=ft.MainAxisAlignment.SPACE_EVENLY,
-                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                            controls=[
-                                ft.Container(width=160, height=160, content=self.category_pie_chart),
-                                ft.Container(content=self.category_legend_col)
-                            ]
-                        )
+                        self.category_bars_col
                     ]
                 )
             )
         )
 
-        # Chart 3: Payment Split Pie Chart
-        self.payment_pie_chart = ft.PieChart(
-            sections=[],
-            sections_space=3,
-            center_space_radius=35,
-            expand=True
-        )
-        self.payment_legend_col = ft.Column(spacing=8, alignment=ft.MainAxisAlignment.CENTER)
+        # Visual Chart 3: Payment Split Comparison Card
+        self.payment_bars_col = ft.Column(spacing=12)
 
         self.chart_payment_card = ft.Card(
             elevation=2,
@@ -210,14 +182,7 @@ class ReportsView(ft.View):
                                 ft.Text("💳 สัดส่วนช่องทางชำระเงิน (Payment Split)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                             ]
                         ),
-                        ft.Row(
-                            alignment=ft.MainAxisAlignment.SPACE_EVENLY,
-                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                            controls=[
-                                ft.Container(width=160, height=160, content=self.payment_pie_chart),
-                                ft.Container(content=self.payment_legend_col)
-                            ]
-                        )
+                        self.payment_bars_col
                     ]
                 )
             )
@@ -423,99 +388,110 @@ class ReportsView(ft.View):
             self.kpi_bill_stats.value = f"{report['bill_count']} บิล (เฉลี่ย {report['avg_bill']:,.2f} ฿)"
             self.kpi_food_cost.value = f"{report['food_cost_pct']:.1f}% (กำไร {report['gross_profit']:,.2f} ฿)"
 
-            # 2. Update 7-Day Bar Chart
+            # 2. Update 7-Day Trend Visual Bars
             daily_data = report.get("daily_trend", [])
-            max_sales = max([d["sales"] for d in daily_data] + [1000])
-            self.bar_chart.max_y = max_sales * 1.25
+            max_sales = max([d["sales"] for d in daily_data] + [1000.0])
+            self.trend_bars_row.controls.clear()
 
-            bar_groups = []
-            bottom_labels = []
-            for idx, d in enumerate(daily_data):
-                bar_groups.append(
-                    ft.BarChartGroup(
-                        x=idx,
-                        bar_rods=[
-                            ft.BarChartRod(
-                                from_y=0,
-                                to_y=d["sales"],
-                                width=24,
-                                color=ft.Colors.BLUE_700,
-                                border_radius=ft.border_radius.only(top_left=6, top_right=6),
+            for d in daily_data:
+                height_ratio = min(1.0, max(0.08, d["sales"] / max_sales))
+                bar_height = height_ratio * 120.0
+                bar_color = ft.Colors.BLUE_700 if d["sales"] > 0 else ft.Colors.GREY_300
+
+                self.trend_bars_row.controls.append(
+                    ft.Column(
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        spacing=6,
+                        controls=[
+                            ft.Text(f"{d['sales']:,.0f}฿" if d["sales"] > 0 else "0฿", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
+                            ft.Container(
+                                width=32,
+                                height=bar_height,
+                                bgcolor=bar_color,
+                                border_radius=ft.BorderRadius(top_left=6, top_right=6, bottom_left=0, bottom_right=0),
                                 tooltip=f"{d['day_name']} ({d['date']}): {d['sales']:,.2f} ฿ ({d['bills']} บิล)"
-                            )
+                            ),
+                            ft.Text(d["day_label"], size=11, color=ft.Colors.GREY_700, weight=ft.FontWeight.W_500)
                         ]
                     )
                 )
-                bottom_labels.append(
-                    ft.ChartAxisLabel(
-                        value=idx,
-                        label=ft.Container(padding=ft.Padding.only(top=5), content=ft.Text(d["date"], size=10, weight=ft.FontWeight.W_500))
-                    )
-                )
 
-            self.bar_chart.bar_groups = bar_groups
-            self.bar_chart.bottom_axis.labels = bottom_labels
-
-            # 3. Update Category Pie Chart
+            # 3. Update Category Visual Bars
             palette = [ft.Colors.RED_600, ft.Colors.ORANGE_600, ft.Colors.BLUE_600, ft.Colors.GREEN_600, ft.Colors.PURPLE_600]
             cat_data = report.get("category_breakdown", [])
-            cat_sections = []
-            cat_legends = []
+            self.category_bars_col.controls.clear()
 
             if cat_data:
                 for idx, c in enumerate(cat_data):
                     color = palette[idx % len(palette)]
-                    cat_sections.append(
-                        ft.PieChartSection(
-                            value=max(1.0, c["pct"]),
-                            title=f"{c['pct']:.0f}%",
-                            title_style=ft.TextStyle(size=11, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-                            color=color,
-                            radius=35
-                        )
-                    )
-                    cat_legends.append(
-                        ft.Row(
-                            spacing=8,
+                    progress_val = min(1.0, max(0.02, c["pct"] / 100.0))
+                    self.category_bars_col.controls.append(
+                        ft.Column(
+                            spacing=4,
                             controls=[
-                                ft.Container(width=12, height=12, bgcolor=color, border_radius=3),
-                                ft.Text(f"{c['name']}: {c['revenue']:,.0f}฿ ({c['pct']:.1f}%)", size=12, weight=ft.FontWeight.W_500)
+                                ft.Row(
+                                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                    controls=[
+                                        ft.Row([
+                                            ft.Container(width=10, height=10, bgcolor=color, border_radius=2),
+                                            ft.Text(c["name"], size=13, weight=ft.FontWeight.W_500)
+                                        ]),
+                                        ft.Text(f"{c['revenue']:,.2f} ฿ ({c['pct']:.1f}%)", size=12, weight=ft.FontWeight.BOLD, color=color)
+                                    ]
+                                ),
+                                ft.ProgressBar(value=progress_val, color=color, bgcolor=ft.Colors.GREY_100, height=8)
                             ]
                         )
                     )
             else:
-                cat_sections.append(ft.PieChartSection(value=100, title="0%", color=ft.Colors.GREY_400, radius=35))
-                cat_legends.append(ft.Text("ยังไม่มีข้อมูลยอดขายหมวดหมู่", size=12, color=ft.Colors.GREY_600))
+                self.category_bars_col.controls.append(ft.Text("ยังไม่มีข้อมูลยอดขายหมวดหมู่", size=12, color=ft.Colors.GREY_600))
 
-            self.category_pie_chart.sections = cat_sections
-            self.category_legend_col.controls = cat_legends
-
-            # 4. Update Payment Split Pie Chart
+            # 4. Update Payment Split Visual Bars
             cash_val = report["cash_sales"]
             qr_val = report["qr_sales"]
             tot = cash_val + qr_val
+            self.payment_bars_col.controls.clear()
 
-            pay_sections = []
-            pay_legends = []
             if tot > 0:
                 c_pct = (cash_val / tot) * 100.0
                 q_pct = (qr_val / tot) * 100.0
-                if cash_val > 0:
-                    pay_sections.append(
-                        ft.PieChartSection(value=c_pct, title=f"{c_pct:.0f}%", title_style=ft.TextStyle(size=11, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD), color=ft.Colors.GREEN_600, radius=35)
-                    )
-                if qr_val > 0:
-                    pay_sections.append(
-                        ft.PieChartSection(value=q_pct, title=f"{q_pct:.0f}%", title_style=ft.TextStyle(size=11, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD), color=ft.Colors.BLUE_600, radius=35)
-                    )
-                pay_legends.append(ft.Row([ft.Container(width=12, height=12, bgcolor=ft.Colors.GREEN_600, border_radius=3), ft.Text(f"เงินสด (Cash): {cash_val:,.2f}฿ ({c_pct:.1f}%)", size=12)]))
-                pay_legends.append(ft.Row([ft.Container(width=12, height=12, bgcolor=ft.Colors.BLUE_600, border_radius=3), ft.Text(f"QR PromptPay: {qr_val:,.2f}฿ ({q_pct:.1f}%)", size=12)]))
-            else:
-                pay_sections.append(ft.PieChartSection(value=100, title="0%", color=ft.Colors.GREY_400, radius=35))
-                pay_legends.append(ft.Text("ยังไม่มีข้อมูลการชำระเงิน", size=12, color=ft.Colors.GREY_600))
 
-            self.payment_pie_chart.sections = pay_sections
-            self.payment_legend_col.controls = pay_legends
+                self.payment_bars_col.controls.extend([
+                    ft.Column(
+                        spacing=4,
+                        controls=[
+                            ft.Row(
+                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                controls=[
+                                    ft.Row([
+                                        ft.Icon(ft.Icons.PAYMENTS, size=16, color=ft.Colors.GREEN_700),
+                                        ft.Text("เงินสด (Cash)", size=13, weight=ft.FontWeight.W_500)
+                                    ]),
+                                    ft.Text(f"{cash_val:,.2f} ฿ ({c_pct:.1f}%)", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+                                ]
+                            ),
+                            ft.ProgressBar(value=c_pct / 100.0, color=ft.Colors.GREEN_600, bgcolor=ft.Colors.GREY_100, height=8)
+                        ]
+                    ),
+                    ft.Column(
+                        spacing=4,
+                        controls=[
+                            ft.Row(
+                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                controls=[
+                                    ft.Row([
+                                        ft.Icon(ft.Icons.QR_CODE_2, size=16, color=ft.Colors.BLUE_700),
+                                        ft.Text("QR PromptPay", size=13, weight=ft.FontWeight.W_500)
+                                    ]),
+                                    ft.Text(f"{qr_val:,.2f} ฿ ({q_pct:.1f}%)", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+                                ]
+                            ),
+                            ft.ProgressBar(value=q_pct / 100.0, color=ft.Colors.BLUE_600, bgcolor=ft.Colors.GREY_100, height=8)
+                        ]
+                    )
+                ])
+            else:
+                self.payment_bars_col.controls.append(ft.Text("ยังไม่มีข้อมูลการชำระเงิน", size=12, color=ft.Colors.GREY_600))
 
             # 5. Update Top Sellers Table
             self.top_sellers_table.rows.clear()

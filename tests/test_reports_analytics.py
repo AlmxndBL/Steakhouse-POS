@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock
 from database.connection import SessionLocal
 from services.report_service import ReportService
 
@@ -40,6 +41,15 @@ class TestReportsAnalytics(unittest.TestCase):
         self.assertIn("Steakhouse POS - รายงานสรุปยอดขาย", csv_str)
         self.assertIn("ยอดขายสุทธิรวม (บาท)", csv_str)
         self.assertIn("เลขที่บิล", csv_str)
+
+    def test_reports_view_instantiation(self):
+        """Test that ReportsView instantiates with all controls without any AttributeError."""
+        mock_page = MagicMock()
+        mock_page.session.store = {"user_name": "Admin", "user_role": "OWNER"}
+        from views.reports_view import ReportsView
+        view = ReportsView(mock_page)
+        self.assertEqual(view.route, "/admin/reports")
+        self.assertIsNotNone(view.controls)
 
 if __name__ == '__main__':
     unittest.main()
