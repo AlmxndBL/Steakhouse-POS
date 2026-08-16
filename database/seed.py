@@ -4,23 +4,57 @@ from database.models import (
     User, UserRole, Table, TableStatus, Category, MenuItem,
     ModifierGroup, ModifierOption, Ingredient, RecipeBOM, StockLot
 )
-from services.auth_service import hash_pin
+from services.auth_service import hash_password
 
 def seed_data():
     Base.metadata.create_all(bind=engine)
+    
+    # Defensive column migration for existing tables
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("""
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50);
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+                DO $$ 
+                BEGIN 
+                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='pin_hash') THEN
+                        ALTER TABLE users ALTER COLUMN pin_hash DROP NOT NULL;
+                    END IF;
+                END $$;
+            """))
+            conn.commit()
+    except Exception as e:
+        print(f"[INFO] Column migration check: {e}")
+
     db = SessionLocal()
 
     try:
-        # 1. Seed Users (if not exists)
-        if db.query(User).count() == 0:
-            users = [
-                User(name="เจ้าของร้าน (Owner)", pin_hash=hash_pin("123456"), role=UserRole.OWNER),
-                User(name="ผู้จัดการ (Manager)", pin_hash=hash_pin("654321"), role=UserRole.MANAGER),
-                User(name="แคชเชียร์ (Cashier)", pin_hash=hash_pin("111111"), role=UserRole.CASHIER),
-                User(name="พนักงานเสิร์ฟ (Waiter)", pin_hash=hash_pin("222222"), role=UserRole.WAITER),
-            ]
-            db.add_all(users)
-            db.commit()
+        # 1. Seed Users (ensure all standard roles exist)
+        standard_users = [
+            ("owner", "admin1234", "เจ้าของร้าน (Owner)", UserRole.OWNER, "081-111-1111"),
+            ("manager", "mgr1234", "ผู้จัดการ (Manager)", UserRole.MANAGER, "082-222-2222"),
+            ("cashier", "cash1234", "แคชเชียร์ (Cashier)", UserRole.CASHIER, "083-333-3333"),
+            ("waiter", "waiter1234", "พนักงานเสิร์ฟ (Waiter)", UserRole.WAITER, "084-444-4444"),
+            ("kitchen", "cook1234", "พนักงานครัว (Kitchen)", UserRole.KITCHEN, "085-555-5555"),
+        ]
+        for username, password, name, role, phone in standard_users:
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                db.add(User(
+                    username=username,
+                    name=name,
+                    password_hash=hash_password(password),
+                    role=role,
+                    phone=phone,
+                    is_active=True
+                ))
+            else:
+                # Update password hash if needed
+                user.password_hash = hash_password(password)
+                user.is_active = True
+        db.commit()
 
         # 2. Seed Tables
         if db.query(Table).count() == 0:

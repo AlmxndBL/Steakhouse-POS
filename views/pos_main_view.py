@@ -3,6 +3,7 @@ import flet as ft
 from database.connection import SessionLocal
 from database.models import Order, Category, MenuItem, ModifierGroup, OrderStatus
 from services.order_service import OrderService
+from services.menu_service import MenuService
 from components.ereceipt_modal import EReceiptModal
 from utils.navigation import navigate_to
 
@@ -33,10 +34,16 @@ class PosMainView(ft.View):
             ]
         )
 
+        # Premium Theme Colors
+        primary_color = ft.Colors.BLUE_800
+        bg_color = ft.Colors.BLUE_GREY_50
+        card_bg = ft.Colors.WHITE
+
         # Header Navigation
         nav_header = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=25, vertical=12),
-            bgcolor=ft.Colors.BLUE_900,
+            padding=ft.Padding.symmetric(horizontal=30, vertical=15),
+            bgcolor=primary_color,
+            shadow=ft.BoxShadow(spread_radius=1, blur_radius=5, color=ft.Colors.BLACK12),
             content=ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
@@ -44,10 +51,15 @@ class PosMainView(ft.View):
                         spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/tables")),
-                            ft.Text("รับออเดอร์ & คิดเงิน (POS Checkout)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                            ft.Text("รับออเดอร์ & คิดเงิน (POS Checkout)", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE)
                         ]
                     ),
-                    ft.Text(f"พนักงาน: {user_name}", size=14, color=ft.Colors.BLUE_200)
+                    ft.Container(
+                        padding=ft.Padding.symmetric(horizontal=15, vertical=8),
+                        bgcolor=ft.Colors.BLUE_900,
+                        border_radius=20,
+                        content=ft.Text(f"พนักงาน: {user_name}", size=14, color=ft.Colors.WHITE, weight=ft.FontWeight.W_500)
+                    )
                 ]
             )
         )
@@ -57,52 +69,64 @@ class PosMainView(ft.View):
         self.menu_grid = ft.GridView(
             expand=True,
             runs_count=3,
-            max_extent=200,
-            child_aspect_ratio=1.1,
-            spacing=15,
-            run_spacing=15,
-            padding=15
+            max_extent=220,
+            child_aspect_ratio=1.0,
+            spacing=20,
+            run_spacing=20,
+            padding=20
         )
 
         # Left Column: Menu Items
         left_layout = ft.Column(
             col={"sm": 12, "md": 7, "lg": 8},
-            spacing=15,
+            spacing=0,
             controls=[
-                ft.Container(content=self.category_row, padding=ft.Padding.only(left=15, top=15, right=15)),
-                ft.Container(expand=True, content=self.menu_grid, bgcolor=ft.Colors.GREY_100)
+                ft.Container(
+                    content=self.category_row, 
+                    padding=ft.Padding.symmetric(horizontal=20, vertical=15),
+                    bgcolor=card_bg,
+                    border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.GREY_200))
+                ),
+                ft.Container(expand=True, content=self.menu_grid, bgcolor=bg_color)
             ]
         )
 
         # Right Column: Cart & Payment Sidebar
         right_layout = ft.Container(
             col={"sm": 12, "md": 5, "lg": 4},
-            bgcolor=ft.Colors.WHITE,
-            border=ft.Border.all(1, ft.Colors.GREY_300),
-            padding=20,
+            bgcolor=card_bg,
+            border=ft.Border(left=ft.BorderSide(1, ft.Colors.GREY_200)),
+            shadow=ft.BoxShadow(spread_radius=1, blur_radius=10, color=ft.Colors.BLACK12),
+            padding=25,
             content=ft.Column(
                 expand=True,
-                spacing=15,
+                spacing=20,
                 controls=[
-                    self.order_title_text,
-                    ft.Divider(height=1, color=ft.Colors.GREY_300),
-                    ft.Container(expand=True, content=self.cart_items_list),
-                    ft.Divider(height=1, color=ft.Colors.GREY_300),
-                    ft.Column(
-                        spacing=10,
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=14), self.subtotal_text]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ส่วนลด (Discount):", size=14), self.discount_input]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=14), self.sc_text]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=14), self.vat_text]),
-                            ft.Divider(height=1, color=ft.Colors.GREY_300),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดชำระสุทธิ:", size=18, weight=ft.FontWeight.BOLD), self.net_total_text]),
+                            self.order_title_text,
+                            ft.Icon(ft.Icons.SHOPPING_CART, color=ft.Colors.BLUE_GREY_400)
+                        ]
+                    ),
+                    ft.Divider(height=1, color=ft.Colors.GREY_200),
+                    ft.Container(expand=True, content=self.cart_items_list),
+                    ft.Divider(height=1, color=ft.Colors.GREY_200),
+                    ft.Column(
+                        spacing=12,
+                        controls=[
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=14, color=ft.Colors.GREY_700), self.subtotal_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ส่วนลด (Discount):", size=14, color=ft.Colors.GREY_700), self.discount_input]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=14, color=ft.Colors.GREY_700), self.sc_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=14, color=ft.Colors.GREY_700), self.vat_text]),
+                            ft.Divider(height=1, color=ft.Colors.GREY_200),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิ:", size=20, weight=ft.FontWeight.BOLD), self.net_total_text]),
                             self.payment_dropdown,
                             ft.Row(
-                                spacing=10,
+                                spacing=15,
                                 controls=[
-                                    ft.ElevatedButton("หารจ่าย", icon=ft.Icons.CALL_SPLIT, style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_600, color=ft.Colors.WHITE, padding=15), expand=1, on_click=self._handle_split_bill),
-                                    ft.ElevatedButton("ชำระเงิน", icon=ft.Icons.PAYMENT, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=15), expand=2, on_click=self._handle_checkout)
+                                    ft.ElevatedButton("หารจ่าย", icon=ft.Icons.CALL_SPLIT, style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_50, color=ft.Colors.INDIGO_700, padding=15, shape=ft.RoundedRectangleBorder(radius=8)), expand=1, on_click=self._handle_split_bill),
+                                    ft.ElevatedButton("ชำระเงิน", icon=ft.Icons.PAYMENT, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=15, shape=ft.RoundedRectangleBorder(radius=8)), expand=2, on_click=self._handle_checkout)
                                 ]
                             )
                         ]
@@ -113,6 +137,7 @@ class PosMainView(ft.View):
 
         main_body = ft.ResponsiveRow(
             expand=True,
+            spacing=0,
             controls=[left_layout, right_layout]
         )
 
@@ -135,15 +160,19 @@ class PosMainView(ft.View):
     def _load_categories_and_menu(self):
         db = SessionLocal()
         try:
-            categories = db.query(Category).order_by(Category.sort_order.asc()).all()
+            categories = MenuService.get_categories(db)
             self.category_row.controls.clear()
             
             # All category button
-            btn_all = ft.ElevatedButton("ทั้งหมด", on_click=lambda e: self._filter_menu(None))
+            btn_all = ft.ElevatedButton("ทั้งหมด", 
+                                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20)),
+                                        on_click=lambda e: self._filter_menu(None))
             self.category_row.controls.append(btn_all)
 
             for cat in categories:
-                btn = ft.ElevatedButton(cat.name, on_click=lambda e, cid=cat.id: self._filter_menu(cid))
+                btn = ft.ElevatedButton(cat.name, 
+                                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20)),
+                                        on_click=lambda e, cid=cat.id: self._filter_menu(cid))
                 self.category_row.controls.append(btn)
 
             self._filter_menu(None)
@@ -154,27 +183,29 @@ class PosMainView(ft.View):
         self.selected_category_id = category_id
         db = SessionLocal()
         try:
-            query = db.query(MenuItem).filter(MenuItem.is_active == True)
-            if category_id:
-                query = query.filter(MenuItem.category_id == category_id)
-            items = query.all()
+            items = MenuService.get_menu_items(db, category_id=category_id, active_only=True)
 
             self.menu_grid.controls.clear()
             for item in items:
                 card = ft.Card(
-                    elevation=3,
-                    shape=ft.RoundedRectangleBorder(radius=12),
+                    elevation=2,
+                    shadow_color=ft.Colors.BLACK12,
+                    shape=ft.RoundedRectangleBorder(radius=16),
                     content=ft.Container(
-                        padding=12,
+                        padding=15,
                         ink=True,
+                        border_radius=16,
                         on_click=lambda e, m=item: self._on_menu_item_click(m),
                         content=ft.Column(
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                             controls=[
-                                ft.Text(item.name, size=14, weight=ft.FontWeight.BOLD, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
-                                ft.Text(f"{item.price:,.2f} ฿", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700),
+                                ft.Text(item.name, size=15, weight=ft.FontWeight.W_600, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, color=ft.Colors.BLUE_GREY_900),
+                                ft.Text(f"{item.price:,.2f} ฿", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_600),
                                 ft.Container(
-                                    content=ft.Row([ft.Icon(ft.Icons.ADD, size=16, color=ft.Colors.BLUE_700), ft.Text("สั่งเพิ่ม", size=12, color=ft.Colors.BLUE_700)]),
+                                    bgcolor=ft.Colors.BLUE_50,
+                                    padding=ft.Padding.symmetric(vertical=8),
+                                    border_radius=8,
+                                    content=ft.Row([ft.Icon(ft.Icons.ADD, size=16, color=ft.Colors.BLUE_700), ft.Text("เพิ่มลงตะกร้า", size=13, weight=ft.FontWeight.W_500, color=ft.Colors.BLUE_700)], alignment=ft.MainAxisAlignment.CENTER),
                                     alignment=ft.Alignment.CENTER
                                 )
                             ]

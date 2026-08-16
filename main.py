@@ -1,10 +1,15 @@
 import flet as ft
 from database.seed import seed_data
 from views.login_view import LoginView
+from views.admin_dashboard_view import AdminDashboardView
+from views.staff_view import StaffView
+from views.admin_menu_view import AdminMenuView
+from views.admin_table_view import AdminTableView
 from views.table_map_view import TableMapView
 from views.pos_main_view import PosMainView
 from views.stock_view import StockView
 from views.reports_view import ReportsView
+from views.kds_view import KdsView
 from utils.navigation import navigate_to
 
 def main(page: ft.Page):
@@ -28,8 +33,12 @@ def main(page: ft.Page):
             route = "/login"
             page.route = "/login"
 
-        # RBAC Check
-        if route in ["/stock", "/reports"]:
+        # RBAC Check for Admin / Back-office Routes
+        admin_routes = [
+            "/admin", "/admin/staff", "/admin/menus", "/admin/tables",
+            "/admin/stock", "/admin/reports", "/stock", "/reports", "/settings"
+        ]
+        if route in admin_routes:
             if user_role not in ["OWNER", "MANAGER"]:
                 # Redirect unauthorized users back to tables
                 route = "/tables"
@@ -37,17 +46,24 @@ def main(page: ft.Page):
 
         if route == "/login":
             page.views.append(LoginView(page))
+        elif route == "/admin":
+            page.views.append(AdminDashboardView(page))
+        elif route == "/admin/staff":
+            page.views.append(StaffView(page))
+        elif route == "/admin/menus" or route == "/settings":
+            page.views.append(AdminMenuView(page))
+        elif route == "/admin/tables":
+            page.views.append(AdminTableView(page))
+        elif route == "/admin/stock" or route == "/stock":
+            page.views.append(StockView(page))
+        elif route == "/admin/reports" or route == "/reports":
+            page.views.append(ReportsView(page))
         elif route == "/tables":
             page.views.append(TableMapView(page))
         elif route == "/pos":
             page.views.append(PosMainView(page))
         elif route == "/kds":
-            from views.kds_view import KdsView
             page.views.append(KdsView(page))
-        elif route == "/stock":
-            page.views.append(StockView(page))
-        elif route == "/reports":
-            page.views.append(ReportsView(page))
         else:
             page.views.append(LoginView(page))
 

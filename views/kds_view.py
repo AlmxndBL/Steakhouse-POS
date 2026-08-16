@@ -17,11 +17,21 @@ class KdsView(ft.View):
                     ft.Row(
                         spacing=15,
                         controls=[
-                            ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/tables")),
+                            ft.IconButton(
+                                ft.Icons.ARROW_BACK,
+                                icon_color=ft.Colors.WHITE,
+                                on_click=lambda e: navigate_to(self.page_ref, "/login" if self.page_ref.session.store.get("user_role") == "KITCHEN" else "/tables")
+                            ),
                             ft.Text("Kitchen Display System (KDS)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
-                    ft.IconButton(ft.Icons.REFRESH, icon_color=ft.Colors.WHITE, on_click=lambda e: self._load_data())
+                    ft.Row(
+                        spacing=10,
+                        controls=[
+                            ft.IconButton(ft.Icons.REFRESH, tooltip="รีเฟรชออเดอร์", icon_color=ft.Colors.WHITE, on_click=lambda e: self._load_data()),
+                            ft.IconButton(ft.Icons.LOGOUT, tooltip="ออกจากระบบ", icon_color=ft.Colors.RED_300, on_click=self._handle_logout)
+                        ]
+                    )
                 ]
             )
         )
@@ -146,3 +156,8 @@ class KdsView(ft.View):
             self._load_data()
         finally:
             db.close()
+
+    def _handle_logout(self, e):
+        self.page_ref.session.store.clear()
+        navigate_to(self.page_ref, "/login")
+

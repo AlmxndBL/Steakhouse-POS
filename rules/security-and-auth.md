@@ -78,3 +78,11 @@
 - ตั้ง Dependabot หรือ Renovate สำหรับ auto-update security patches
 - ตรวจสอบ license compatibility ของ dependencies
 - ล็อก dependency versions (`package-lock.json` / `pnpm-lock.yaml`)
+
+## 13. Security Checklist (ก่อน Deploy)
+- [ ] เปลี่ยน default credentials ทุกตัว
+- [ ] ปิด debug mode / verbose error messages
+- [ ] ตรวจสอบว่า `.env` ไม่อยู่ใน git
+- [ ] ตั้งค่า CORS whitelist ถูกต้อง
+- [ ] เปิดใช้งาน HTTPS
+- [ ] ตรวจสอบ dependency vulnerabilities (`npm audit`)

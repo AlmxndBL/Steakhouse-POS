@@ -25,6 +25,7 @@ Agent จะต้องทำงานตามลำดับ 4 ขั้น�
 ### Step 1: Discovery & Scope (วิเคราะห์ขอบเขต)
 - อ่าน Requirements เพื่อทำความเข้าใจบริบทของระบบ
 - **วิเคราะห์ Existing Codebase** (ถ้ามี) — โครงสร้างโฟลเดอร์, dependencies, patterns ที่ใช้อยู่
+- **ค้นหา Test Runner ประจำโปรเจกต์** — ตรวจสอบว่าโปรเจกต์ใช้เครื่องมือเทสต์อะไร (เช่น `pytest`, `vitest`, `jest`, `cargo test`, `go test`, `flutter test`) เพื่อใช้เป็น Verification Gate ใน Step 4
 - ประเมิน Tech Stack ที่เหมาะสมกับเนื้องาน
 - หาข้อจำกัด (Constraints) ที่อาจเกิดขึ้น
 - **ระบุ Non-functional Requirements** — Performance, Scalability, Security needs, SLA
@@ -43,14 +44,25 @@ Agent จะต้องทำงานตามลำดับ 4 ขั้น�
 - โหลด Skill `mattpocock/skills` เมื่อเขียน TypeScript (เน้น Strict Typing, ห้าม `any`)
 - โหลด Skill `design-taste-frontend` เสมอเมื่อสร้างหน้าจอ/UI เพื่อคุมโทนสี, Spacing, และ Typography ให้ดู Premium
 - โหลด Skill `impeccable` เสมอเมื่อต้อง Review/Audit หน้าเว็บ เพื่อตรวจสอบ UX, Hierarchy, และ Accessibility
+- **Multi-Role & RBAC System Blueprint (เมื่อพัฒนาระบบที่มีหลายบทบาท):**
+  1. **Seeded Test Accounts:** ต้อง Seed บัญชีผู้ใช้เริ่มต้นพร้อมรหัสผ่านที่จำง่ายครบทุก Role ลงใน Database ตั้งแต่เริ่ม เพื่อให้ระบบพร้อมทดสอบทันที
+  2. **1-Click Dev Persona Quick-Login:** หน้า Login ต้องมีปุ่มลัด (Quick Demo Chips/Buttons) สำหรับ 1-Click ล็อกอินของทุก Role ในโหมด Dev/Test (และซ่อนอัตโนมัติเมื่อขึ้น Production)
+  3. **Role-Based Workspace Separation:** แยกหน้าจอหลักตามบทบาทหน้าที่ชัดเจน ไม่นำฟังก์ชันที่ต่างหน้าที่มากองรวมกัน (เช่น ผู้บริหารไป `/admin`, หน้าร้านไป `/pos`, ครัวไป `/kds`)
+  4. **Route Guards & Auto-Redirect:** ดักสิทธิ์การเข้าถึงทุก Route หากไม่มีสิทธิ์ให้ Redirect กลับหน้าของตัวเองเสมอ
+  5. **Header Role Badge:** แสดงป้ายชื่อและ Role ปัจจุบันที่มุมบนขวาเสมอ พร้อมปุ่ม Logout สะดวก
 - เขียนโค้ดที่รันได้จริง 100% ห้ามมี Placeholder Code
 
-### Step 4: Verification (ตรวจสอบ)
-- ทำ Bounded Loop (Build -> Lint -> Test)
-- **Functional Verification** — ฟีเจอร์ทำงานถูกต้องตาม requirement หรือไม่?
-- **Regression Check** — แก้แล้วพังส่วนอื่นหรือไม่? (รัน test suite ทั้งหมด)
-- **Performance Check** — render ช้าลงไหม? API response time เพิ่มขึ้นไหม?
-- หากพยายามแก้ Error ล้มเหลวครบ 2 ครั้ง → ใช้ **Failure Report Template** (ด้านล่าง)
+### Step 4: Verification (Universal Quality Gate & Definition of Done)
+- **กฎเหล็ก (Build Pass != Functional Pass):** ห้ามถือเอาการรันคอมไพล์ผ่าน, Docker exit code 0 หรือแอปเปิดติด เป็นการทดสอบเสร็จสิ้นเด็ดขาด
+- **Universal Definition of Done (DoD):**
+  1. **Run Project Test Runner:** หากโปรเจกต์มี Test Runner ให้สั่งรันเทสต์ที่เกี่ยวข้องทั้งหมดให้ผ่าน 100%
+  2. **Ad-hoc Runtime Verification (กรณีไม่มี Test Suite):** ต้องสั่งรัน Script หรือคำสั่ง inline (เช่น `python -c ...` หรือ `node -e ...`) เพื่อ Execute ฟังก์ชันจริงและพิสูจน์ว่าไม่มี TypeError / Runtime Crash
+  3. **Stateful & Database Verification:** หากมีการแก้ไข Schema, Seeding หรือ Data Logic ต้องรัน Script/Query เข้าไป Assert ข้อมูลจริงในฐานข้อมูลเสมอ (ต้องคำนึงถึง Persistent Volume ใน Docker เสมอว่าอาจมีข้อมูลเก่าค้างอยู่)
+  4. **End-to-End Persona Verification:** ต้องทดสอบครอบคลุมทุก User Journey และทุก Role ที่เกี่ยวข้อง (เช่น ทดสอบ Auth ทุก Role จริงก่อนส่งงาน)
+- **Mandatory Evidence Delivery Gate (No Evidence = Not Done):**
+  - ห้ามรายงานผู้ใช้ว่างานเสร็จสิ้นเด็ดขาด หากในคำตอบ **ไม่มีหลักฐานผลลัพธ์การรันเทสต์ (Terminal Output / Logs / Assertion Results)** แนบมาด้วย
+- **Regression Check:** ตรวจสอบว่าฟังก์ชันเดิมยังทำงานได้ ไม่พังจากโค้ดใหม่
+- **Failure Report:** หากพยายามแก้ Error ล้มเหลวครบ 2 ครั้ง → ใช้ **Failure Report Template** (ด้านล่าง)
 
 ---
 

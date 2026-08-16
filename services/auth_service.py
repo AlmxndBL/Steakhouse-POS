@@ -1,44 +1,55 @@
 import bcrypt
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 from database.models import User, UserRole, AuditLog
 
-def hash_pin(pin: str) -> str:
-    # Hash a password for the first time
-    # Using a fixed salt or generate one. Usually, for DB we store the full hashed string.
-    # In bcrypt, gensalt() generates a random salt and hashes it.
+def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(pin.encode("utf-8"), salt).decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
-def check_pin(pin: str, hashed: str) -> bool:
+def check_password(password: str, hashed: str) -> bool:
     try:
-        return bcrypt.checkpw(pin.encode("utf-8"), hashed.encode("utf-8"))
+        return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
     except ValueError:
         return False
 
 class AuthService:
     @staticmethod
-    def verify_pin(db: Session, pin: str) -> Optional[User]:
-        if len(pin) != 6 or not pin.isdigit():
+    def authenticate(db: Session, username: str, password: str) -> Optional[User]:
+        """
+        Authenticates a user by username and password.
+        Returns the User object if successful, None otherwise.
+        """
+        if not username or not password:
             return None
-        
-        # We need to fetch all active users and check pin since bcrypt salts are unique
-        # A better way for large scale is to not allow PIN only login without user id,
-        # but since this is a POS with PIN-only login, we iterate over active users
-        users = db.query(User).filter(User.is_active == True).all()
-        user = None
-        for u in users:
-            if check_pin(pin, u.pin_hash):
-                user = u
-                break
-        
-        if user:
+
+        clean_username = username.strip().lower()
+        user = db.query(User).filter(
+            User.username == clean_username,
+            User.is_active == True
+        ).first()
+
+        if not user:
+            return None
+
+        if check_password(password, user.password_hash):
             # Log audit for login
-            log = AuditLog(user_id=user.id, action="LOGIN_PIN", target_type="User", target_id=user.id)
+            log = AuditLog(
+                user_id=user.id,
+                action="LOGIN_PASSWORD",
+                target_type="User",
+                target_id=user.id
+            )
             db.add(log)
             db.commit()
-        return user
+            return user
+
+        return None
 
     @staticmethod
     def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
         return db.query(User).filter(User.id == user_id).first()
+
+    @staticmethod
+    def has_permission(user_role: UserRole, allowed_roles: List[UserRole]) -> bool:
+        return user_role in allowed_roles

@@ -2,6 +2,7 @@ import flet as ft
 from database.connection import SessionLocal
 from database.models import OrderType
 from services.order_service import OrderService
+from services.table_service import TableService
 from components.table_card import TableCard
 from utils.navigation import navigate_to
 
@@ -17,8 +18,7 @@ class TableMapView(ft.View):
             ft.ElevatedButton("ครัว (KDS)", icon=ft.Icons.KITCHEN, on_click=lambda e: navigate_to(self.page_ref, "/kds"), style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_700, color=ft.Colors.WHITE)),
         ]
         if user_role in ["OWNER", "MANAGER"]:
-            nav_buttons.append(ft.ElevatedButton("คลังวัตถุดิบ & BOM", icon=ft.Icons.INVENTORY, on_click=lambda e: navigate_to(self.page_ref, "/stock"), style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_GREY_700, color=ft.Colors.WHITE)))
-            nav_buttons.append(ft.ElevatedButton("รายงานยอดขาย", icon=ft.Icons.BAR_CHART, on_click=lambda e: navigate_to(self.page_ref, "/reports"), style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_GREY_700, color=ft.Colors.WHITE)))
+            nav_buttons.insert(0, ft.ElevatedButton("👑 แดชบอร์ดผู้บริหาร", icon=ft.Icons.DASHBOARD, on_click=lambda e: navigate_to(self.page_ref, "/admin"), style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)))
 
         # App Bar / Header Navigation
         nav_header = ft.Container(
@@ -99,7 +99,7 @@ class TableMapView(ft.View):
     def _load_tables(self):
         db = SessionLocal()
         try:
-            tables = OrderService.get_tables(db)
+            tables = TableService.get_tables(db)
             self.grid.controls.clear()
             for t in tables:
                 card = TableCard(table=t, on_click=self._on_table_click)
