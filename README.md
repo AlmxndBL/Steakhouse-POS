@@ -1,39 +1,62 @@
-# Steakhouse POS - ระบบจัดการร้านสเต๊กและคลังวัตถุดิบ
+# 🥩 Steakhouse POS - ระบบจัดการร้านสเต๊กและคลังวัตถุดิบครบวงจร
 
-ระบบ Point of Sale (POS) ที่พัฒนาขึ้นมาโดยเฉพาะสำหรับร้านสเต๊ก (Dine-in และ Takeaway) จุดเด่นของระบบคือการจัดการคลังวัตถุดิบที่ซับซ้อน เช่น การตัดสต๊อกเนื้อสัตว์แบบเรียลไทม์ผ่านระบบ BOM (Bill of Materials) การจัดการสูตรอาหาร และระบบสินค้าคงคลังแบบเข้าก่อนออกก่อน (FIFO/FEFO)
+ระบบ Point of Sale (POS) และระบบบริหารจัดการร้านอาหารที่พัฒนาขึ้นมาโดยเฉพาะสำหรับร้านสเต๊ก (รองรับทั้ง Dine-in, Takeaway, และ Kitchen Queue) โดดเด่นด้วยการควบคุมต้นทุนวัตถุดิบแบบเรียลไทม์ผ่าน **Recipe BOM (Bill of Materials)**, การตัดสต๊อกเนื้อสัตว์แบบ **FIFO/FEFO**, ระบบ **Multi-Role RBAC**, และแดชบอร์ดสรุปยอดขายพร้อม **Interactive Charts & CSV Export**
 
 ---
 
-## 🎯 จุดเด่นของระบบ (Key Features)
+## 🎯 จุดเด่นและฟังก์ชันของระบบ (Key Features)
 
-### 1. งานหน้าร้าน (Front of House)
-- **Table Management:** จัดการผังโต๊ะ ดูสถานะโต๊ะ (ว่าง/ไม่ว่าง) รองรับการเปิดบิล, ย้ายโต๊ะ, รวมบิล และแยกบิล
-- **Order Management:** สั่งอาหารและปรับแต่งเมนู (เช่น ความสุกของเนื้อ Rare/Medium/Well-done, เลือกซอส) 
-- **Checkout & E-Receipt:** รองรับการรับชำระเงินและออกใบเสร็จอิเล็กทรอนิกส์ (E-Receipt) พร้อม QR Code
+### 1. 🔑 ระบบยืนยันตัวตนและความปลอดภัย (Authentication & RBAC)
+- **Username + Password (Bcrypt Hashing):** ระบบล็อกอินความปลอดภัยสูง บันทึกประวัติการเข้าใช้งาน (Audit Logs)
+- **5 ระดับสิทธิ์ (RBAC Matrix):** 
+  - `👑 OWNER (เจ้าของร้าน)`: สิทธิ์สูงสุด จัดการร้าน พนักงาน เมนู โต๊ะ สต๊อก และดูรายงานการเงิน
+  - `👔 MANAGER (ผู้จัดการ)`: บริหารจัดการทั่วไป เมนู สต๊อก พนักงาน และรายงาน
+  - `💵 CASHIER (แคชเชียร์)`: รับออเดอร์หน้าร้าน คิดเงิน ออกสลิป E-Receipt
+  - `🍽️ WAITER (พนักงานเสิร์ฟ)`: ดูผังโต๊ะ รับออเดอร์ ปรับแต่งระดับความสุก/ซอส
+  - `👨‍🍳 KITCHEN (เชฟในครัว)`: ดูจอคิวทำอาหาร (KDS) และอัปเดตสถานะอาหาร
+- **🚀 1-Click Dev Persona Quick Login:** ปุ่มลัดสลับบทบาทบนหน้า Login สำหรับโหมดพัฒนา/ทดสอบ สลับ Role ได้ทันทีในคลิกเดียว
 
-### 2. ระบบคลังวัตถุดิบ (Inventory & BOM Engine)
-- **BOM (Bill of Materials):** ผูกสูตรอาหารกับวัตถุดิบ ระบบจะตัดสต๊อกอัตโนมัติตามสัดส่วนที่ตั้งไว้เมื่อมีการสั่งเมนู
-- **Lot/Batch Tracking:** รองรับการจัดการวัตถุดิบเป็น Lot พร้อมวันหมดอายุ เพื่อใช้ในการตัดสต๊อกแบบ FIFO (First-In, First-Out)
-- **Wastage Management:** บันทึกของเสียหรือวัตถุดิบที่ต้องตัดทิ้งพร้อมระบุสาเหตุ
+---
 
-### 3. ระบบผู้ใช้งานและสิทธิ์ (Authentication & RBAC)
-- ล็อกอินด้วยระบบ PIN Code เพื่อความสะดวกรวดเร็วของพนักงาน
-- แบ่งสิทธิ์การใช้งาน (Role-Based Access Control): เจ้าของร้าน (Owner), ผู้จัดการ (Manager), แคชเชียร์/พนักงานเสิร์ฟ (Staff)
-- ระบบจำกัดการเข้าถึงเมนูหลังร้าน (Stock & Reports) สำหรับผู้ที่มีสิทธิ์เท่านั้น
+### 2. 👑 ระบบบริหารจัดการผู้บริหาร (Executive Back-office Workspaces)
+- **📊 Executive Dashboard (`/admin`):** สรุป KPI สำคัญประจำวัน (ยอดขายรวม, จำนวนบิล, โต๊ะที่มีลูกค้า, การแจ้งเตือนวัตถุดิบใกล้หมด)
+- **👥 Staff Management (`/admin/staff`):** เพิ่ม/แก้ไขข้อมูลพนักงาน กำหนดตำแหน่ง และรีเซ็ตรหัสผ่าน
+- **🥩 Menu & Category Management (`/admin/menus`):** จัดการรายการอาหาร หมวดหมู่ ปรับราคา และเปิด/ปิดการขาย
+- **🪑 Table & Zone Layout (`/admin/tables`):** เพิ่ม/ลบโต๊ะอาหาร กำหนดจำนวนที่นั่ง และจัดโซนร้าน (Indoor, Terrace, VIP, Outdoor)
+- **📦 Stock & Recipe BOM (`/admin/stock`):** รับวัตถุดิบเข้าคลัง (Purchase In), บันทึกของเสีย (Wastage), และผูกสูตรอาหาร (BOM)
+- **📈 Visual Analytics & Reports (`/admin/reports`):**
+  - กราฟแท่งแนวโน้มยอดขาย 7 วันล่าสุด (`BarChart`)
+  - กราฟวงกลมสัดส่วนยอดขายตามหมวดหมู่อาหาร (`PieChart`)
+  - กราฟโดนัทเปรียบเทียบช่องทางชำระเงิน เงินสด vs QR PromptPay
+  - 5 อันดับเมนูขายดีที่สุด (Top 5 Best Sellers)
+  - คำนวณ Food Cost % และ Gross Margin % อัตโนมัติ
+  - ปุ่มส่งออกข้อมูลยอดขายเป็นไฟล์ **Excel / CSV**
 
-### 4. แดชบอร์ดและรายงาน (Reports)
-- รายงานยอดขายและข้อมูลเชิงลึก
-- ระบบตรวจสอบสต๊อกคงเหลือ
+---
+
+### 3. 🍽️ งานหน้าร้านและคิดเงิน (Front of House POS)
+- **Interactive Floor Plan (`/tables`):** ผังโต๊ะอาหารแบบเรียลไทม์ แสดงสถานะโต๊ะว่าง (สีเขียว) / มีลูกค้า (สีส้ม)
+- **Steak Customization & Modifiers (`/pos`):** ปรับแต่งระดับความสุกของเนื้อ (Rare, Medium Rare, Medium, Medium Well, Well Done) และเลือกซอสสเต๊ก
+- **Billing & Discount Engine:** คำนวณ Service Charge 10%, VAT 7%, และส่วนลด (บาท / %)
+- **🧾 E-Receipt Generation:** สร้างสลิปใบเสร็จดิจิทัลแบบ Base64 พร้อมแสดงผลและบันทึกภาพได้ทันที
+
+---
+
+### 4. 👨‍🍳 ระบบจอแสดงผลในครัว (Kitchen Display System - KDS)
+- **Live Order Queue (`/kds`):** จอแสดงรายการอาหารที่ต้องทำแบบเรียลไทม์ แยกตามโต๊ะและเวลาสั่ง
+- **Status Workflow:** อัปเดตสถานะจาก `รอทำ (Pending)` ➔ `กำลังปรุง (Cooking)` ➔ `พร้อมเสิร์ฟ (Ready)`
 
 ---
 
 ## 🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
 
-- **Frontend / GUI:** [Flet](https://flet.dev/) (Python UI Framework ใช้งานร่วมกับ Flutter)
+- **UI & Frontend Framework:** [Python Flet 0.86.5](https://flet.dev/) (Flutter-powered Native GUI & Web Engine)
 - **Backend Language:** Python 3.11+
-- **Database:** SQLite (Embedded Local DB) สำหรับการทำงานแบบออฟไลน์
-- **ORM:** SQLAlchemy (จัดการโมเดลฐานข้อมูล)
-- **Others:** `pillow`, `qrcode` (สำหรับ E-Receipt), `bcrypt` (สำหรับความปลอดภัยของ PIN)
+- **Database:** PostgreSQL (Docker) / SQLite Local (`pos_data.db`)
+- **ORM:** SQLAlchemy
+- **Containerization:** Docker & Docker Compose (Multi-stage build)
+- **Security:** `bcrypt`, `pydantic`, `cryptography`
+- **Image & Receipt:** `Pillow`, `qrcode`
 
 ---
 
@@ -41,45 +64,88 @@
 
 ```text
 POS flet/
+├── AGENTS.md                  # Master Agent Rules & Multi-Role Blueprint
+├── AI-Context-Index.md        # Single Source of Truth (Nexus)
+├── docker-compose.yml         # Docker Compose Config (App & PostgreSQL DB)
+├── Dockerfile                 # Multi-stage Python 3.11 Image Definition
+├── main.py                    # App Entry Point & RBAC Route Guard
 │
-├── components/          # UI Components ที่ใช้งานซ้ำ (เช่น Numpad, Modal ใบเสร็จ, การ์ดโต๊ะ)
-├── database/            # การเชื่อมต่อฐานข้อมูล, โมเดล ORM, และไฟล์ Seed ข้อมูลเริ่มต้น
-├── services/            # Business Logic หลัก (BOM Engine, ระบบ Order, ระบบ Auth, ระบบใบเสร็จ)
-├── utils/               # ฟังก์ชันช่วยเหลือ (Utility) เช่น ระบบ Navigation
-├── views/               # หน้าจอหลักของแอปพลิเคชัน (Login, POS, ผังโต๊ะ, สต๊อก, รายงาน)
-├── main.py              # ไฟล์หลักสำหรับรันโปรแกรม (Entry Point)
-├── requirements.txt     # รายการ Dependency ของ Python
-└── scope.md             # เอกสารรายละเอียดขอบเขตของระบบ
+├── database/                  # การเชื่อมต่อฐานข้อมูลและ Data Seeder
+│   ├── connection.py          # SQLAlchemy SessionLocal
+│   ├── models.py              # Models (User, Table, Menu, BOM, Lot, Order)
+│   └── seed.py                # Database Seeder & Auto Migration
+│
+├── views/                     # หน้าจอแยกตาม Workspace
+│   ├── login_view.py          # หน้า Login + 1-Click Persona Switcher
+│   ├── admin_dashboard_view.py# แดชบอร์ดผู้บริหาร
+│   ├── admin_menu_view.py     # จัดการเมนูอาหาร (/admin/menus)
+│   ├── admin_table_view.py    # จัดการผังโต๊ะ (/admin/tables)
+│   ├── staff_view.py          # จัดการพนักงาน (/admin/staff)
+│   ├── stock_view.py          # จัดการคลังและ BOM (/admin/stock)
+│   ├── reports_view.py        # แดชบอร์ดรายงานและกราฟ (/admin/reports)
+│   ├── table_map_view.py      # ผังโต๊ะหน้าร้าน (/tables)
+│   ├── pos_main_view.py       # ระบบรับออเดอร์และคิดเงิน (/pos)
+│   └── kds_view.py            # จอคิวครัว KDS (/kds)
+│
+├── services/                  # Business Logic & Engines
+│   ├── auth_service.py        # Bcrypt Authentication
+│   ├── bom_engine.py          # Recipe BOM & FIFO Lot Deduction
+│   ├── order_service.py       # Order & Payment Calculations
+│   ├── report_service.py      # Financial Metrics, Charts & CSV Export
+│   ├── receipt_service.py     # Base64 E-Receipt Generator
+│   ├── staff_service.py       # Staff CRUD & Password Reset
+│   └── table_service.py       # Table CRUD & Seating Layout
+│
+├── components/                # Reusable UI & Dialogs (E-Receipt, Modifiers)
+└── tests/                     # Automated Sandbox Test Suite (16/16 Passed)
 ```
 
 ---
 
-## 🚀 การติดตั้งและเริ่มใช้งาน
+## 🚀 การติดตั้งและเริ่มใช้งาน (Getting Started)
 
-### 1. ความต้องการของระบบ (Prerequisites)
-- Python 3.11 ขึ้นไป
-
-### 2. ติดตั้ง Dependencies
-เปิด Terminal หรือ Command Prompt ในโฟลเดอร์โปรเจกต์ แล้วรันคำสั่ง:
+### 🐳 วิธีที่ 1: รันด้วย Docker (แนะนำที่สุด)
+ติดตั้ง [Docker Desktop](https://www.docker.com/) แล้วรันคำสั่ง:
 ```bash
-pip install -r requirements.txt
+docker-compose up -d --build
 ```
+เข้าใช้งานผ่าน Web Browser ได้ทันทีที่: **[http://localhost:8000](http://localhost:8000)**
 
-### 3. การรันโปรแกรม
-เมื่อติดตั้ง Dependencies เสร็จสิ้น สามารถรันระบบได้ด้วยคำสั่ง:
+---
+
+### 💻 วิธีที่ 2: รันในเครื่องแบบ Native Python
+1. ติดตั้ง Python 3.11+
+2. ติดตั้ง Dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. รันโปรแกรม:
+   ```bash
+   python main.py
+   ```
+
+---
+
+## 🔐 บัญชีสำหรับทดสอบระบบ (Seeded Test Accounts)
+
+| Username | Password | Role | สิทธิ์การเข้าถึงหน้าจอ |
+|---|---|---|---|
+| `owner` | `admin1234` | `OWNER` | เข้าถึงได้ทุกหน้า (Dashboard, Staff, Menus, Tables, Stock, Reports, POS, KDS) |
+| `manager` | `mgr1234` | `MANAGER` | เข้าถึงได้ทุกหน้า (Dashboard, Staff, Menus, Tables, Stock, Reports, POS, KDS) |
+| `cashier` | `cash1234` | `CASHIER` | หน้าร้าน POS (`/tables`, `/pos`) และจอครัว (`/kds`) |
+| `waiter` | `waiter1234` | `WAITER` | ผังโต๊ะ & รับออเดอร์หน้าร้าน (`/tables`, `/pos`) |
+| `kitchen` | `cook1234` | `KITCHEN` | จอคิวครัวเท่านั้น (`/kds`) |
+
+> 💡 *บนหน้าจอ Login ในโหมด Dev จะมีปุ่มชิป **🚀 Quick Demo Login** ให้กด 1-Click เข้าใช้งานได้ทันทีโดยไม่ต้องพิมพ์รหัสผ่าน*
+
+---
+
+## 🧪 การทดสอบระบบ (Automated Sandbox Test Suite)
+
+รันชุดทดสอบอัตโนมัติครอบคลุมทั้งระบบ (16/16 Tests Passed 100%):
 ```bash
-python main.py
+docker-compose exec -e PYTHONPATH=/app -T app python tests/run_all_tests.py
 ```
-*(เมื่อรันโปรแกรมครั้งแรก ระบบจะทำการสร้างฐานข้อมูล `pos_data.db` และสร้างข้อมูลพื้นฐาน (Seed Data) ให้โดยอัตโนมัติ)*
 
 ---
-
-## 🔐 ข้อมูลสำหรับการทดสอบ (Test Accounts)
-
-ระบบได้สร้างบัญชีทดสอบไว้ให้ใช้งานเบื้องต้น โดยใช้ PIN Code ดังนี้:
-- **Owner / Admin:** `1234` (เข้าได้ทุกระบบ)
-- **Manager:** `5678` (เข้าได้ทุกระบบ)
-- **Staff / Cashier:** `9012` (เข้าได้เฉพาะหน้า POS และผังโต๊ะ ไม่สามารถเข้าดูสต๊อกและรายงานได้)
-
----
-*Developed with Python & Flet.*
+*Developed with Python, Flet & Modern Software Engineering Standards.*
