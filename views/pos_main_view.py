@@ -359,30 +359,94 @@ class PosMainView(ft.View):
         if not self.order_id:
             return
         
-        persons_input = ft.TextField(label="จำนวนคน", value="2", keyboard_type=ft.KeyboardType.NUMBER)
-        result_text = ft.Text("...", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+        persons_input = ft.TextField(label="จำนวนคน (เช่น 2, 3, 4)", value="2", keyboard_type=ft.KeyboardType.NUMBER, width=160)
+        net_text = ft.Text(f"ยอดสุทธิรวมทั้งบิล: {self._cached_net_amount:,.2f} ฿", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900)
+        per_person_text = ft.Text("...", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+        breakdown_col = ft.Column(spacing=6)
+
+        def set_persons(n: int):
+            persons_input.value = str(n)
+            calculate_split(None)
+
+        chips_row = ft.Row([
+            ft.ActionChip(label=ft.Text("2 คน"), on_click=lambda e: set_persons(2)),
+            ft.ActionChip(label=ft.Text("3 คน"), on_click=lambda e: set_persons(3)),
+            ft.ActionChip(label=ft.Text("4 คน"), on_click=lambda e: set_persons(4)),
+            ft.ActionChip(label=ft.Text("5 คน"), on_click=lambda e: set_persons(5)),
+        ], spacing=8)
         
-        def calculate_split(e):
+        def calculate_split(e_calc):
             try:
-                p = int(persons_input.value)
-                if p > 0:
-                    net = self._cached_net_amount
-                    result_text.value = f"ตกคนละ: {(net / p):,.2f} ฿"
-                    try:
-                        result_text.update()
-                    except Exception:
-                        pass
-            except:
+                raw_p = (persons_input.value or "1").strip()
+                p = int(raw_p) if raw_p else 1
+                if p <= 0:
+                    p = 1
+                net = self._cached_net_amount
+                per_head = net / p
+                per_person_text.value = f"ตกคนละ: {per_head:,.2f} ฿"
+
+                breakdown_col.controls.clear()
+                for i in range(1, p + 1):
+                    breakdown_col.controls.append(
+                        ft.Container(
+                            bgcolor=ft.Colors.GREY_50,
+                            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+                            border_radius=6,
+                            content=ft.Row(
+                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                controls=[
+                                    ft.Text(f"คนที่ #{i}", weight=ft.FontWeight.W_500, size=13),
+                                    ft.Text(f"{per_head:,.2f} ฿", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_800, size=13),
+                                ]
+                            )
+                        )
+                    )
+                self._update_ui()
+            except Exception:
                 pass
                 
         persons_input.on_change = calculate_split
         calculate_split(None)
+
+        def copy_summary(e_copy):
+            try:
+                p = int(persons_input.value or "1")
+                per_head = self._cached_net_amount / p
+                summary = f"🥩 สรุปยอดหารค่าอาหาร Steakhouse POS\nยอดสุทธิ: {self._cached_net_amount:,.2f} บาท\nจำนวน {p} คน\n➡️ ตกคนละ: {per_head:,.2f} บาท"
+                self.page_ref.clipboard = summary
+                self.page_ref.snack_bar = ft.SnackBar(ft.Text("📋 คัดลอกสรุปยอดหารรายคนแล้ว! นำไปวางใน LINE ได้ทันที"), bgcolor=ft.Colors.GREEN_700, open=True)
+                self.page_ref.update()
+            except Exception:
+                pass
         
         dialog = ft.AlertDialog(
-            title=ft.Text("หารจ่าย (Split Bill)"),
-            content=ft.Column([persons_input, result_text], height=120)
+            title=ft.Row([
+                ft.Icon(ft.Icons.CALL_SPLIT, color=ft.Colors.BLUE_900),
+                ft.Text("ระบบหารจ่ายรายคน (Split Bill)", weight=ft.FontWeight.BOLD, size=16)
+            ]),
+            content=ft.Container(
+                width=420,
+                content=ft.Column(
+                    spacing=12,
+                    tight=True,
+                    controls=[
+                        net_text,
+                        chips_row,
+                        ft.Row([persons_input, per_person_text], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Divider(height=1),
+                        ft.Text("สรุปยอดชำระรายบุคคล:", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
+                        ft.Container(
+                            height=140,
+                            content=ft.ListView([breakdown_col])
+                        )
+                    ]
+                )
+            ),
+            actions=[
+                ft.OutlinedButton("📋 คัดลอกสรุปส่ง LINE", icon=ft.Icons.CONTENT_COPY, on_click=copy_summary),
+                ft.TextButton("ปิด", on_click=lambda e: self._close_dialog(dialog))
+            ]
         )
-        dialog.actions = [ft.TextButton("ปิด", on_click=lambda e: self._close_dialog(dialog))]
         self._open_dialog(dialog)
 
     def _handle_checkout(self, e):

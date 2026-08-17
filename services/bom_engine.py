@@ -1,4 +1,4 @@
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import List, Dict, Any, Optional
 from sqlalchemy import nullslast
@@ -56,7 +56,7 @@ class BOMEngine:
                     db.add(st_tx)
 
                 if remaining_to_deduct > Decimal('0'):
-                    # Not enough stock in active lots. We will overdraft the latest active lot.
+                    # Not enough stock in active lots. Overdraft the latest active lot.
                     latest_lot = lots[-1] if lots else None
                     if latest_lot:
                         latest_lot.remaining_quantity -= remaining_to_deduct
@@ -182,6 +182,85 @@ class BOMEngine:
         return new_lot
 
     @staticmethod
+    def adjust_stock(db: Session, ingredient_id: int, new_actual_qty: float, reason: str, user_id: int) -> Dict[str, Any]:
+        """
+        Physical Stock Take: Adjusts system stock to match physically counted stock.
+        Records a StockTransaction of type ADJUSTMENT and logs the variance.
+        """
+        ingredient = db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
+        if not ingredient:
+            raise ValueError(f"ไม่พบวัตถุดิบ ID {ingredient_id}")
+
+        active_lots = db.query(StockLot).filter(
+            StockLot.ingredient_id == ingredient_id,
+            StockLot.remaining_quantity > 0,
+            StockLot.is_depleted == False
+        ).order_by(StockLot.received_date.desc()).all()
+
+        current_system_qty = sum(float(l.remaining_quantity) for l in active_lots)
+        variance = float(new_actual_qty) - current_system_qty
+
+        if abs(variance) < 1e-4:
+            return {
+                "ingredient_id": ingredient_id,
+                "ingredient_name": ingredient.name,
+                "system_qty": current_system_qty,
+                "actual_qty": new_actual_qty,
+                "variance": 0.0,
+                "status": "MATCHED"
+            }
+
+        target_lot = active_lots[0] if active_lots else None
+        if not target_lot:
+            # Create an adjustment lot if no active lots exist
+            target_lot = StockLot(
+                ingredient_id=ingredient_id,
+                lot_number=f"ADJ-{datetime.now().strftime('%Y%m%d%H%M')}",
+                initial_quantity=Decimal(str(max(0.0, new_actual_qty))),
+                remaining_quantity=Decimal(str(max(0.0, new_actual_qty))),
+                unit_cost=ingredient.cost_per_unit or Decimal('0'),
+                expiry_date=None,
+                received_date=datetime.now(timezone.utc),
+                is_depleted=False
+            )
+            db.add(target_lot)
+            db.flush()
+        else:
+            new_lot_qty = float(target_lot.remaining_quantity) + variance
+            target_lot.remaining_quantity = Decimal(str(max(0.0, new_lot_qty)))
+            if target_lot.remaining_quantity <= 0:
+                target_lot.is_depleted = True
+
+        st_tx = StockTransaction(
+            lot_id=target_lot.id,
+            tx_type=StockTxType.ADJUSTMENT,
+            quantity=Decimal(str(variance)),
+            reason=reason or f"ปรับปรุงยอดจากการนับสต๊อกจริง (Physical Count: {new_actual_qty} {ingredient.unit})",
+            user_id=user_id,
+            timestamp=datetime.now(timezone.utc)
+        )
+        db.add(st_tx)
+
+        audit = AuditLog(
+            user_id=user_id,
+            action="PHYSICAL_STOCK_ADJUSTMENT",
+            target_type="Ingredient",
+            target_id=ingredient_id,
+            details_json=f'{{"system_qty": {current_system_qty}, "actual_qty": {new_actual_qty}, "variance": {variance}, "reason": "{reason}"}}'
+        )
+        db.add(audit)
+        db.commit()
+
+        return {
+            "ingredient_id": ingredient_id,
+            "ingredient_name": ingredient.name,
+            "system_qty": current_system_qty,
+            "actual_qty": new_actual_qty,
+            "variance": variance,
+            "status": "ADJUSTED"
+        }
+
+    @staticmethod
     def get_inventory_status(db: Session) -> List[Dict[str, Any]]:
         """
         Calculates total remaining stock per ingredient and flags low stock alerts.
@@ -189,11 +268,11 @@ class BOMEngine:
         ingredients = db.query(Ingredient).filter(Ingredient.is_active == True).all()
         result = []
         for ing in ingredients:
-            total_stock = sum(lot.remaining_quantity for lot in ing.lots if not lot.is_depleted)
+            total_stock = sum(float(lot.remaining_quantity) for lot in ing.lots if not lot.is_depleted)
             status = "NORMAL"
             if total_stock == 0:
                 status = "OUT_OF_STOCK"
-            elif total_stock <= ing.min_stock_alert:
+            elif total_stock <= float(ing.min_stock_alert):
                 status = "LOW_STOCK"
             
             result.append({
@@ -201,10 +280,39 @@ class BOMEngine:
                 "code": ing.code,
                 "name": ing.name,
                 "unit": ing.unit,
-                "min_stock_alert": ing.min_stock_alert,
+                "min_stock_alert": float(ing.min_stock_alert),
                 "current_stock": total_stock,
-                "cost_per_unit": ing.cost_per_unit,
+                "cost_per_unit": float(ing.cost_per_unit),
                 "status": status,
                 "active_lots_count": sum(1 for lot in ing.lots if not lot.is_depleted)
             })
         return result
+
+    @staticmethod
+    def get_expiring_soon_lots(db: Session, days: int = 7) -> List[Dict[str, Any]]:
+        """
+        Returns active lots that are expiring within the specified number of days.
+        """
+        threshold_date = date.today() + timedelta(days=days)
+        lots = db.query(StockLot).filter(
+            StockLot.is_depleted == False,
+            StockLot.remaining_quantity > 0,
+            StockLot.expiry_date != None,
+            StockLot.expiry_date <= threshold_date
+        ).order_by(StockLot.expiry_date.asc()).all()
+
+        results = []
+        today = date.today()
+        for lot in lots:
+            days_left = (lot.expiry_date - today).days if lot.expiry_date else 999
+            results.append({
+                "lot_id": lot.id,
+                "lot_number": lot.lot_number,
+                "ingredient_name": lot.ingredient.name if lot.ingredient else "-",
+                "unit": lot.ingredient.unit if lot.ingredient else "",
+                "remaining_quantity": float(lot.remaining_quantity),
+                "expiry_date": lot.expiry_date.strftime("%Y-%m-%d") if lot.expiry_date else "-",
+                "days_left": days_left,
+                "is_expired": days_left < 0
+            })
+        return results

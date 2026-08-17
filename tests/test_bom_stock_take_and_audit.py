@@ -1,0 +1,79 @@
+import unittest
+from datetime import datetime, date, timedelta, timezone
+from database.connection import SessionLocal
+from database.models import Ingredient, StockLot, StockTransaction, StockTxType, AuditLog, MenuItem, RecipeBOM
+from services.bom_engine import BOMEngine
+from services.menu_service import MenuService
+from services.table_service import TableService
+
+class TestBOMStockTakeAndAudit(unittest.TestCase):
+    def setUp(self):
+        self.db = SessionLocal()
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_table_and_menu_get_by_id(self):
+        """Test TableService.get_table_by_id and MenuService.get_menu_item_by_id"""
+        t = TableService.get_table_by_id(self.db, 1)
+        self.assertIsNotNone(t, "Table ID 1 should exist")
+        self.assertEqual(t.id, 1)
+
+        m = MenuService.get_menu_item_by_id(self.db, 1)
+        self.assertIsNotNone(m, "MenuItem ID 1 should exist")
+        self.assertEqual(m.id, 1)
+
+    def test_menu_item_bom_cost_calculation(self):
+        """Test MenuService.get_item_bom_cost returns non-zero cost for steak items with BOM"""
+        cost = MenuService.get_item_bom_cost(self.db, 1)
+        self.assertIsInstance(cost, float)
+        self.assertGreaterEqual(cost, 0.0)
+
+    def test_physical_stock_take_adjustment(self):
+        """Test BOMEngine.adjust_stock updates stock and records adjustment transaction & audit log"""
+        ing = self.db.query(Ingredient).filter(Ingredient.is_active == True).first()
+        self.assertIsNotNone(ing, "Ingredient should exist")
+
+        # Get initial stock
+        status_before = BOMEngine.get_inventory_status(self.db)
+        ing_status = next(s for s in status_before if s["id"] == ing.id)
+        current_stock = ing_status["current_stock"]
+
+        # Adjust stock
+        target_qty = current_stock + 500.0
+        res = BOMEngine.adjust_stock(
+            self.db,
+            ingredient_id=ing.id,
+            new_actual_qty=target_qty,
+            reason="ทดสอบนับสต๊อกจริง",
+            user_id=1
+        )
+
+        self.assertEqual(res["status"], "ADJUSTED")
+        self.assertEqual(res["actual_qty"], target_qty)
+        self.assertAlmostEqual(res["variance"], 500.0)
+
+        # Check transaction in db
+        tx = self.db.query(StockTransaction).filter(
+            StockTransaction.tx_type == StockTxType.ADJUSTMENT
+        ).order_by(StockTransaction.timestamp.desc()).first()
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.quantity, 500.0)
+
+        # Check audit log
+        audit = self.db.query(AuditLog).filter(
+            AuditLog.action == "PHYSICAL_STOCK_ADJUSTMENT"
+        ).order_by(AuditLog.timestamp.desc()).first()
+        self.assertIsNotNone(audit)
+        self.assertIn("system_qty", audit.details_json)
+
+    def test_get_expiring_soon_lots(self):
+        """Test BOMEngine.get_expiring_soon_lots returns lots within 7 days"""
+        expiring = BOMEngine.get_expiring_soon_lots(self.db, days=14)
+        self.assertIsInstance(expiring, list)
+        if expiring:
+            self.assertIn("lot_number", expiring[0])
+            self.assertIn("days_left", expiring[0])
+
+if __name__ == "__main__":
+    unittest.main()

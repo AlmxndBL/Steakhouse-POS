@@ -11,6 +11,10 @@ class TableService:
         return query.order_by(Table.table_number.asc()).all()
 
     @staticmethod
+    def get_table_by_id(db: Session, table_id: int) -> Optional[Table]:
+        return db.query(Table).filter(Table.id == table_id).first()
+
+    @staticmethod
     def get_zones(db: Session) -> List[str]:
         results = db.query(Table.zone).distinct().all()
         return [r[0] for r in results if r[0]]

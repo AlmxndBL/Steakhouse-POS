@@ -25,7 +25,7 @@ class AdminMenuView(ft.View):
                         spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("🥩 จัดการเมนูอาหาร & หมวดหมู่ (Menu Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                            ft.Text("🥩 จัดการเมนูอาหาร, ราคา & ต้นทุน BOM (Menu & Cost Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
                     ft.Row(
@@ -49,7 +49,7 @@ class AdminMenuView(ft.View):
             )
         )
 
-        # Menu Data Table
+        # Menu Data Table with Food Cost %
         self.menu_table = ft.DataTable(
             heading_row_color=ft.Colors.GREY_100,
             heading_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
@@ -57,9 +57,11 @@ class AdminMenuView(ft.View):
             border_radius=8,
             columns=[
                 ft.DataColumn(ft.Text("รหัสเมนู")),
-                ft.DataColumn(ft.Text("ชื่อเมนู")),
+                ft.DataColumn(ft.Text("ชื่อเมนูอาหาร")),
                 ft.DataColumn(ft.Text("หมวดหมู่")),
-                ft.DataColumn(ft.Text("ราคา (บาท)")),
+                ft.DataColumn(ft.Text("ราคาขาย")),
+                ft.DataColumn(ft.Text("ต้นทุน BOM")),
+                ft.DataColumn(ft.Text("Food Cost %")),
                 ft.DataColumn(ft.Text("สถานะการขาย")),
                 ft.DataColumn(ft.Text("จัดการ")),
             ],
@@ -83,8 +85,8 @@ class AdminMenuView(ft.View):
                             ft.Row(
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                 controls=[
-                                    ft.Text("รายการอาหารทั้งหมดในร้าน", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                    ft.Text("คลิกไอคอน ✏️ เพื่อแก้ไขราคา/ชื่อ หรือ 👁️ เพื่อเปิด/ปิดการขาย", size=13, color=ft.Colors.GREY_600)
+                                    ft.Text("รายการอาหารและโครงสร้างต้นทุนวัตถุดิบทั้งหมด", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
+                                    ft.Text("💡 คลิกไอคอน ✏️ เพื่อแก้ไขราคา/ชื่อ หรือ 👁️ เพื่อเปิด/ปิดการขาย", size=13, color=ft.Colors.GREY_600)
                                 ]
                             ),
                             ft.Container(expand=True, content=ft.ListView([self.menu_table], expand=True))
@@ -121,13 +123,22 @@ class AdminMenuView(ft.View):
                 status_text = "เปิดขาย" if item.is_active else "ปิดขายชั่วคราว"
                 item_id = item.id
                 cat_name = item.category.name if item.category else "-"
+                
+                bom_cost = MenuService.get_item_bom_cost(db, item.id)
+                price_val = float(item.price)
+                cost_pct = (bom_cost / price_val * 100.0) if price_val > 0 else 0.0
+                cost_pct_color = ft.Colors.GREEN_700 if cost_pct <= 35 else (ft.Colors.AMBER_800 if cost_pct <= 50 else ft.Colors.RED_700)
 
                 row = ft.DataRow(
                     cells=[
                         ft.DataCell(ft.Text(item.code, weight=ft.FontWeight.BOLD)),
                         ft.DataCell(ft.Text(item.name, weight=ft.FontWeight.W_500)),
                         ft.DataCell(ft.Text(cat_name)),
-                        ft.DataCell(ft.Text(f"{item.price:,.2f} ฿", weight=ft.FontWeight.W_600, color=ft.Colors.GREEN_700)),
+                        ft.DataCell(ft.Text(f"{price_val:,.2f} ฿", weight=ft.FontWeight.W_600, color=ft.Colors.BLUE_900)),
+                        ft.DataCell(ft.Text(f"{bom_cost:,.2f} ฿" if bom_cost > 0 else "-", color=ft.Colors.GREY_700)),
+                        ft.DataCell(
+                            ft.Text(f"{cost_pct:.1f}%" if bom_cost > 0 else "-", weight=ft.FontWeight.BOLD, color=cost_pct_color)
+                        ),
                         ft.DataCell(
                             ft.Container(
                                 content=ft.Text(status_text, size=12, color=status_color, weight=ft.FontWeight.BOLD),
@@ -223,9 +234,10 @@ class AdminMenuView(ft.View):
                 db_inner = SessionLocal()
                 try:
                     price = float(raw_price)
+                    selected_cat_id = int(cat_dropdown.value) if cat_dropdown.value else categories[0].id
                     MenuService.create_menu_item(
                         db_inner,
-                        category_id=int(cat_dropdown.value),
+                        category_id=selected_cat_id,
                         code=code_input.value.strip(),
                         name=name_input.value.strip(),
                         price=price,
@@ -259,6 +271,7 @@ class AdminMenuView(ft.View):
         try:
             item = MenuService.get_menu_item_by_id(db, item_id)
             if not item:
+                self._show_info_dialog("ข้อผิดพลาด", f"ไม่พบเมนูอาหาร ID {item_id}")
                 return
 
             categories = MenuService.get_categories(db)
@@ -301,12 +314,13 @@ class AdminMenuView(ft.View):
                 db_inner = SessionLocal()
                 try:
                     price = float(raw_price)
+                    selected_cat_id = int(cat_dropdown.value) if cat_dropdown.value else item.category_id
                     MenuService.update_menu_item(
                         db_inner,
                         item_id=item_id,
                         name=name_input.value.strip(),
                         price=price,
-                        category_id=int(cat_dropdown.value),
+                        category_id=selected_cat_id,
                         description=desc_input.value.strip() if desc_input.value else None,
                         is_active=active_switch.value
                     )

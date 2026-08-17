@@ -200,7 +200,7 @@ class AdminTableView(ft.View):
                     db,
                     table_number=num_input.value.strip(),
                     capacity=cap,
-                    zone=zone_dropdown.value
+                    zone=zone_dropdown.value or "Indoor"
                 )
                 self._close_dialog(dialog)
                 self._load_table_data()
@@ -228,6 +228,7 @@ class AdminTableView(ft.View):
         try:
             table = TableService.get_table_by_id(db, table_id)
             if not table:
+                self._show_info_dialog("ข้อผิดพลาด", f"ไม่พบข้อมูลโต๊ะ ID {table_id}")
                 return
 
             num_input = ft.TextField(label="หมายเลขโต๊ะ", value=table.table_number, width=380)
@@ -240,7 +241,7 @@ class AdminTableView(ft.View):
                     ft.dropdown.Option("VIP Room", "ห้องวีไอพี (VIP Room)"),
                     ft.dropdown.Option("Outdoor", "โซนกลางแจ้ง (Outdoor)")
                 ],
-                value=table.zone
+                value=table.zone or "Indoor"
             )
             cap_input = ft.TextField(label="จำนวนที่นั่ง", value=str(table.capacity), width=380)
 
@@ -281,7 +282,7 @@ class AdminTableView(ft.View):
                         table_id=table_id,
                         table_number=num_input.value.strip(),
                         capacity=cap,
-                        zone=zone_dropdown.value
+                        zone=zone_dropdown.value or "Indoor"
                     )
                     self._close_dialog(dialog)
                     self._load_table_data()

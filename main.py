@@ -10,6 +10,7 @@ from views.pos_main_view import PosMainView
 from views.stock_view import StockView
 from views.reports_view import ReportsView
 from views.kds_view import KdsView
+from views.audit_log_view import AuditLogView
 from utils.navigation import navigate_to
 
 def main(page: ft.Page):
@@ -36,7 +37,7 @@ def main(page: ft.Page):
         # RBAC Check for Admin / Back-office Routes
         admin_routes = [
             "/admin", "/admin/staff", "/admin/menus", "/admin/tables",
-            "/admin/stock", "/admin/reports", "/stock", "/reports", "/settings"
+            "/admin/stock", "/admin/reports", "/admin/audit", "/stock", "/reports", "/settings"
         ]
         if route in admin_routes:
             if user_role not in ["OWNER", "MANAGER"]:
@@ -58,6 +59,8 @@ def main(page: ft.Page):
             page.views.append(StockView(page))
         elif route == "/admin/reports" or route == "/reports":
             page.views.append(ReportsView(page))
+        elif route == "/admin/audit":
+            page.views.append(AuditLogView(page))
         elif route == "/tables":
             page.views.append(TableMapView(page))
         elif route == "/pos":
@@ -95,4 +98,3 @@ if __name__ == "__main__":
     else:
         # Desktop app mode
         ft.run(main, view=ft.AppView.FLET_APP, port=port, assets_dir=exports_path)
-

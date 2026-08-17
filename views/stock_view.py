@@ -18,28 +18,38 @@ class StockView(ft.View):
 
         # Header Nav
         nav_header = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=30, vertical=20),
+            padding=ft.Padding.symmetric(horizontal=30, vertical=18),
             bgcolor=primary_color,
             shadow=ft.BoxShadow(spread_radius=1, blur_radius=5, color=ft.Colors.BLACK12),
             content=ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
                     ft.Row(
-                        spacing=20,
+                        spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("ระบบคลังวัตถุดิบ (Inventory Management)", size=22, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE)
+                            ft.Text("📦 ระบบคลังวัตถุดิบ & ตรวจนับสต๊อก (Inventory Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
                     ft.Row(
-                        spacing=15,
+                        spacing=10,
                         controls=[
                             ft.ElevatedButton(
+                                "⚖️ ตรวจนับสต๊อกจริง",
+                                icon=ft.Icons.FACT_CHECK,
+                                style=ft.ButtonStyle(
+                                    bgcolor=ft.Colors.AMBER_800, 
+                                    color=ft.Colors.WHITE,
+                                    shape=ft.RoundedRectangleBorder(radius=8)
+                                ),
+                                on_click=self._open_stock_take_dialog
+                            ),
+                            ft.ElevatedButton(
                                 "📥 รับวัตถุดิบเข้าคลัง",
+                                icon=ft.Icons.ADD_SHOPPING_CART,
                                 style=ft.ButtonStyle(
                                     bgcolor=ft.Colors.GREEN_600, 
                                     color=ft.Colors.WHITE,
-                                    padding=ft.Padding.symmetric(horizontal=20, vertical=12),
                                     shape=ft.RoundedRectangleBorder(radius=8)
                                 ),
                                 on_click=self._open_receive_dialog
@@ -50,7 +60,6 @@ class StockView(ft.View):
                                 style=ft.ButtonStyle(
                                     bgcolor=ft.Colors.RED_600, 
                                     color=ft.Colors.WHITE,
-                                    padding=ft.Padding.symmetric(horizontal=20, vertical=12),
                                     shape=ft.RoundedRectangleBorder(radius=8)
                                 ),
                                 on_click=self._open_wastage_dialog
@@ -60,6 +69,9 @@ class StockView(ft.View):
                 ]
             )
         )
+
+        # 🚨 Proactive Alert Banner for Low Stock and Expiring Lots
+        self.alert_banner_container = ft.Container(visible=False, padding=ft.Padding.symmetric(horizontal=30, vertical=10))
 
         # Tables
         self.inventory_table = ft.DataTable(
@@ -101,16 +113,15 @@ class StockView(ft.View):
         self.btn_lots = ft.ElevatedButton("รายละเอียดราย Lot (FIFO)", style=self._get_inactive_tab_style(), on_click=self._show_lots)
 
         toggle_bar = ft.Container(
-            padding=ft.Padding.only(left=30, top=20, right=30, bottom=10),
+            padding=ft.Padding.only(left=30, top=10, right=30, bottom=5),
             content=ft.Row([self.btn_inv, self.btn_lots], spacing=10)
         )
 
         content_body = ft.Container(
             expand=True,
-            padding=30,
+            padding=ft.Padding.only(left=30, right=30, bottom=30, top=10),
             content=ft.Card(
                 elevation=2,
-                shadow_color=ft.Colors.BLACK26,
                 shape=ft.RoundedRectangleBorder(radius=12),
                 content=ft.Container(
                     bgcolor=card_bg,
@@ -127,7 +138,7 @@ class StockView(ft.View):
                 ft.Column(
                     expand=True,
                     spacing=0,
-                    controls=[nav_header, toggle_bar, content_body]
+                    controls=[nav_header, self.alert_banner_container, toggle_bar, content_body]
                 )
             ],
             bgcolor=bg_color,
@@ -139,16 +150,17 @@ class StockView(ft.View):
 
     def _get_active_tab_style(self):
         return ft.ButtonStyle(
-            bgcolor=ft.Colors.WHITE, 
-            color=ft.Colors.BLUE_800,
-            shape=ft.RoundedRectangleBorder(radius=20),
-            elevation=2
+            bgcolor=ft.Colors.BLUE_900, 
+            color=ft.Colors.WHITE,
+            shape=ft.RoundedRectangleBorder(radius=8),
+            elevation=1
         )
 
     def _get_inactive_tab_style(self):
         return ft.ButtonStyle(
-            bgcolor=ft.Colors.TRANSPARENT, 
-            color=ft.Colors.GREY_600,
+            bgcolor=ft.Colors.WHITE, 
+            color=ft.Colors.BLUE_GREY_800,
+            shape=ft.RoundedRectangleBorder(radius=8),
             elevation=0
         )
 
@@ -170,6 +182,48 @@ class StockView(ft.View):
         db = SessionLocal()
         try:
             status_list = BOMEngine.get_inventory_status(db)
+            expiring_lots = BOMEngine.get_expiring_soon_lots(db, days=7)
+
+            # 🚨 1. Build Alert Banner
+            low_stock_items = [i for i in status_list if i["status"] in ["LOW_STOCK", "OUT_OF_STOCK"]]
+            alerts = []
+            if low_stock_items:
+                low_names = ", ".join([f"{i['name']} ({i['current_stock']:.1f} {i['unit']})" for i in low_stock_items])
+                alerts.append(
+                    ft.Container(
+                        bgcolor=ft.Colors.RED_50,
+                        border=ft.Border.all(1, ft.Colors.RED_300),
+                        border_radius=8,
+                        padding=ft.Padding.symmetric(horizontal=15, vertical=10),
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.WARNING_AMBER, color=ft.Colors.RED_700, size=22),
+                            ft.Text(f"⚠️ แจ้งเตือนสินค้าใกล้หมด/หมดสต๊อก ({len(low_stock_items)} รายการ): {low_names}", color=ft.Colors.RED_900, weight=ft.FontWeight.W_600, size=13)
+                        ])
+                    )
+                )
+
+            if expiring_lots:
+                exp_names = ", ".join([f"{l['ingredient_name']} (Lot: {l['lot_number']}, เหลือ {l['days_left']} วัน)" for l in expiring_lots])
+                alerts.append(
+                    ft.Container(
+                        bgcolor=ft.Colors.AMBER_50,
+                        border=ft.Border.all(1, ft.Colors.AMBER_300),
+                        border_radius=8,
+                        padding=ft.Padding.symmetric(horizontal=15, vertical=10),
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.TIMER, color=ft.Colors.AMBER_800, size=22),
+                            ft.Text(f"⏰ แจ้งเตือนวัตถุดิบใกล้หมดอายุภายใน 7 วัน ({len(expiring_lots)} รายการ): {exp_names}", color=ft.Colors.AMBER_900, weight=ft.FontWeight.W_600, size=13)
+                        ])
+                    )
+                )
+
+            if alerts:
+                self.alert_banner_container.content = ft.Column(alerts, spacing=6)
+                self.alert_banner_container.visible = True
+            else:
+                self.alert_banner_container.visible = False
+
+            # 2. Populate Inventory Table
             self.inventory_table.rows.clear()
             for item in status_list:
                 status_color = ft.Colors.GREEN_700
@@ -189,7 +243,7 @@ class StockView(ft.View):
                     cells=[
                         ft.DataCell(ft.Text(item["code"], weight=ft.FontWeight.W_500, color=ft.Colors.GREY_700)),
                         ft.DataCell(ft.Text(item["name"], weight=ft.FontWeight.BOLD)),
-                        ft.DataCell(ft.Text(f"{item['current_stock']:,.1f} {item['unit']}", weight=ft.FontWeight.W_600)),
+                        ft.DataCell(ft.Text(f"{item['current_stock']:,.1f} {item['unit']}", weight=ft.FontWeight.W_600, color=status_color)),
                         ft.DataCell(ft.Text(f"{item['min_stock_alert']:,.1f} {item['unit']}", color=ft.Colors.GREY_600)),
                         ft.DataCell(ft.Text(f"{item['cost_per_unit']:,.2f} ฿")),
                         ft.DataCell(
@@ -204,7 +258,7 @@ class StockView(ft.View):
                 )
                 self.inventory_table.rows.append(row)
 
-            # Load Active Lots
+            # 3. Load Active Lots
             lots = db.query(StockLot).filter(StockLot.remaining_quantity > 0, StockLot.is_depleted == False).order_by(StockLot.expiry_date.asc()).all()
             self.lots_table.rows.clear()
             for lot in lots:
@@ -217,9 +271,9 @@ class StockView(ft.View):
 
                 row = ft.DataRow(
                     cells=[
-                        ft.DataCell(ft.Text(lot.ingredient.name, weight=ft.FontWeight.BOLD)),
+                        ft.DataCell(ft.Text(lot.ingredient.name if lot.ingredient else "-", weight=ft.FontWeight.BOLD)),
                         ft.DataCell(ft.Text(lot.lot_number, color=ft.Colors.BLUE_700)),
-                        ft.DataCell(ft.Text(f"{lot.remaining_quantity:,.1f} {lot.ingredient.unit}", weight=ft.FontWeight.W_600)),
+                        ft.DataCell(ft.Text(f"{float(lot.remaining_quantity):,.1f} {lot.ingredient.unit if lot.ingredient else ''}", weight=ft.FontWeight.W_600)),
                         ft.DataCell(ft.Text(exp_str, color=ft.Colors.RED_700 if is_expiring else ft.Colors.BLACK, weight=ft.FontWeight.BOLD if is_expiring else ft.FontWeight.NORMAL)),
                         ft.DataCell(ft.Text("พร้อมใช้งาน", color=ft.Colors.GREEN_700))
                     ]
@@ -227,6 +281,117 @@ class StockView(ft.View):
                 self.lots_table.rows.append(row)
 
             self._update_ui()
+        finally:
+            db.close()
+
+    def _open_stock_take_dialog(self, e):
+        """Physical Stock Take Dialog (ตรวจนับสต๊อกจริงเทียบระบบ)"""
+        db = SessionLocal()
+        try:
+            ingredients = db.query(Ingredient).filter(Ingredient.is_active == True).all()
+            if not ingredients:
+                self._show_info_dialog("แจ้งเตือน", "ไม่พบรายการวัตถุดิบในระบบ")
+                return
+
+            ing_map = {str(ing.id): ing for ing in ingredients}
+            
+            ing_dropdown = ft.Dropdown(
+                label="เลือกวัตถุดิบที่ต้องการตรวจนับ",
+                width=400,
+                options=[ft.dropdown.Option(str(ing.id), f"{ing.name} ({ing.unit})") for ing in ingredients],
+                value=str(ingredients[0].id)
+            )
+            
+            system_stock_text = ft.Text("สต๊อกในระบบปัจจุบัน: ...", size=13, color=ft.Colors.BLUE_GREY_700, weight=ft.FontWeight.BOLD)
+            actual_qty_input = ft.TextField(label="จำนวนที่นับได้จริง (Physical Count)", width=400, keyboard_type=ft.KeyboardType.NUMBER)
+            variance_text = ft.Text("ผลต่าง (Variance): 0.00", size=13, color=ft.Colors.BLUE_900, weight=ft.FontWeight.BOLD)
+            reason_input = ft.TextField(label="หมายเหตุการปรับปรุง (เช่น นับสต๊อกสิ้นเดือน, ตัดเศษ)", value="ตรวจนับสต๊อกจริงประจำงวด", width=400)
+
+            def update_system_stock_info(e_change):
+                selected_id = ing_dropdown.value
+                if selected_id and selected_id in ing_map:
+                    ing = ing_map[selected_id]
+                    db_tmp = SessionLocal()
+                    try:
+                        lots = db_tmp.query(StockLot).filter(StockLot.ingredient_id == ing.id, StockLot.remaining_quantity > 0, StockLot.is_depleted == False).all()
+                        current_sys = sum(float(l.remaining_quantity) for l in lots)
+                        system_stock_text.value = f"📦 สต๊อกในระบบปัจจุบัน: {current_sys:,.2f} {ing.unit}"
+                        
+                        try:
+                            act_val = float(actual_qty_input.value or 0)
+                            diff = act_val - current_sys
+                            diff_color = ft.Colors.GREEN_700 if diff >= 0 else ft.Colors.RED_700
+                            sign = "+" if diff > 0 else ""
+                            variance_text.value = f"📊 ส่วนต่าง: {sign}{diff:,.2f} {ing.unit}"
+                            variance_text.color = diff_color
+                        except ValueError:
+                            variance_text.value = "ส่วนต่าง: -"
+                        
+                        self._update_ui()
+                    finally:
+                        db_tmp.close()
+
+            ing_dropdown.on_select = update_system_stock_info
+            actual_qty_input.on_change = update_system_stock_info
+            update_system_stock_info(None)
+
+            def submit_stock_take(e_sub):
+                if not ing_dropdown.value:
+                    ing_dropdown.error_text = "กรุณาเลือกวัตถุดิบ"
+                    self._update_ui()
+                    return
+
+                raw_act = (actual_qty_input.value or "").strip()
+                if not raw_act:
+                    actual_qty_input.error_text = "กรุณากรอกจำนวนที่นับได้จริง"
+                    self._update_ui()
+                    return
+
+                try:
+                    act_qty = float(raw_act)
+                    if act_qty < 0:
+                        actual_qty_input.error_text = "จำนวนต้องไม่ติดลบ"
+                        self._update_ui()
+                        return
+                    actual_qty_input.error_text = None
+                except ValueError:
+                    actual_qty_input.error_text = "กรุณากรอกตัวเลขที่ถูกต้อง"
+                    self._update_ui()
+                    return
+
+                user_id = self.page_ref.session.store.get("user_id") or 1
+                ing_id = int(ing_dropdown.value)
+                reason = reason_input.value.strip() if reason_input.value else "ปรับปรุงยอดนับสต๊อกจริง"
+
+                db_inner = SessionLocal()
+                try:
+                    res = BOMEngine.adjust_stock(db_inner, ing_id, act_qty, reason, user_id)
+                    self._close_dialog(dialog)
+                    self._load_inventory_data()
+                    self._show_info_dialog("บันทึกการนับสต๊อกสำเร็จ", f"ปรับปรุงยอดวัตถุดิบ '{res['ingredient_name']}' เป็น {res['actual_qty']:,.2f} เรียบร้อยแล้ว (ส่วนต่าง: {res['variance']:+,.2f})")
+                except Exception as err:
+                    actual_qty_input.error_text = str(err)
+                    self._update_ui()
+                finally:
+                    db_inner.close()
+
+            dialog = ft.AlertDialog(
+                title=ft.Text("⚖️ ตรวจนับสต๊อกจริง (Physical Stock Take)", weight=ft.FontWeight.BOLD),
+                content=ft.Container(
+                    width=420,
+                    content=ft.Column(
+                        [ing_dropdown, system_stock_text, actual_qty_input, variance_text, reason_input],
+                        spacing=14,
+                        tight=True
+                    )
+                ),
+                actions=[
+                    ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
+                    ft.ElevatedButton("บันทึกปรับยอดสต๊อก", style=ft.ButtonStyle(bgcolor=ft.Colors.AMBER_800, color=ft.Colors.WHITE), on_click=submit_stock_take)
+                ],
+                shape=ft.RoundedRectangleBorder(radius=12)
+            )
+            self._open_dialog(dialog)
         finally:
             db.close()
 
@@ -239,12 +404,13 @@ class StockView(ft.View):
                 label="เลือกวัตถุดิบ",
                 width=400,
                 options=[ft.dropdown.Option(str(ing.id), f"{ing.name} ({ing.unit})") for ing in ingredients],
+                value=str(ingredients[0].id) if ingredients else None,
                 border_radius=8
             )
-            lot_input = ft.TextField(label="เลข Lot / Batch (เว้นว่างระบบจะสร้างให้)", width=400, border_radius=8)
+            lot_input = ft.TextField(label="เลข Lot / Batch (เว้นว่างระบบจะสร้างให้อัตโนมัติ)", width=400, border_radius=8)
             qty_input = ft.TextField(label="จำนวนที่รับเข้า", width=400, keyboard_type=ft.KeyboardType.NUMBER, border_radius=8)
             cost_input = ft.TextField(label="ต้นทุนต่อหน่วย (Unit Cost)", width=400, keyboard_type=ft.KeyboardType.NUMBER, border_radius=8)
-            exp_input = ft.TextField(label="วันหมดอายุ (YYYY-MM-DD)", width=400, border_radius=8)
+            exp_input = ft.TextField(label="วันหมดอายุ (YYYY-MM-DD เช่น 2026-12-31)", width=400, border_radius=8)
 
             def submit_receive(e_sub):
                 has_error = False
@@ -318,12 +484,12 @@ class StockView(ft.View):
                     db_inner.close()
 
             dialog = ft.AlertDialog(
-                title=ft.Text("รับวัตถุดิบเข้าคลัง (Purchase In)", weight=ft.FontWeight.BOLD),
+                title=ft.Text("📥 รับวัตถุดิบเข้าคลัง (Purchase In)", weight=ft.FontWeight.BOLD),
                 content=ft.Container(
                     width=400,
                     content=ft.Column(
                         [ing_dropdown, lot_input, qty_input, cost_input, exp_input],
-                        spacing=15,
+                        spacing=14,
                         tight=True
                     )
                 ),
@@ -331,8 +497,6 @@ class StockView(ft.View):
                     ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
                     ft.ElevatedButton("บันทึกรับเข้า", style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE), on_click=submit_receive)
                 ],
-                actions_padding=20,
-                content_padding=ft.Padding.only(left=20, right=20, top=20, bottom=10),
                 shape=ft.RoundedRectangleBorder(radius=12)
             )
             self._open_dialog(dialog)
@@ -347,6 +511,7 @@ class StockView(ft.View):
                 label="เลือกวัตถุดิบที่เสีย/ตัดทิ้ง",
                 width=400,
                 options=[ft.dropdown.Option(str(ing.id), f"{ing.name} ({ing.unit})") for ing in ingredients],
+                value=str(ingredients[0].id) if ingredients else None,
                 border_radius=8
             )
             qty_input = ft.TextField(label="จำนวนที่เสีย", width=400, keyboard_type=ft.KeyboardType.NUMBER, border_radius=8)
@@ -403,22 +568,30 @@ class StockView(ft.View):
                     db_inner.close()
 
             dialog = ft.AlertDialog(
-                title=ft.Text("บันทึกตัดของเสีย (Record Wastage)", weight=ft.FontWeight.BOLD),
+                title=ft.Text("🗑️ บันทึกตัดของเสีย (Record Wastage)", weight=ft.FontWeight.BOLD),
                 content=ft.Container(
                     width=400,
-                    content=ft.Column([ing_dropdown, qty_input, reason_input], spacing=15, tight=True)
+                    content=ft.Column([ing_dropdown, qty_input, reason_input], spacing=14, tight=True)
                 ),
                 actions=[
                     ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
                     ft.ElevatedButton("ยืนยันตัดสต๊อก", style=ft.ButtonStyle(bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE), on_click=submit_wastage)
                 ],
-                actions_padding=20,
-                content_padding=ft.Padding.only(left=20, right=20, top=20, bottom=10),
                 shape=ft.RoundedRectangleBorder(radius=12)
             )
             self._open_dialog(dialog)
         finally:
             db.close()
+
+    def _show_info_dialog(self, title: str, message: str):
+        dialog = ft.AlertDialog(
+            title=ft.Text(title, weight=ft.FontWeight.BOLD),
+            content=ft.Text(message),
+            actions=[
+                ft.ElevatedButton("ตกลง", on_click=lambda e: self._close_dialog(dialog))
+            ]
+        )
+        self._open_dialog(dialog)
 
     def _open_dialog(self, dialog: ft.AlertDialog):
         try:

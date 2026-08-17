@@ -157,11 +157,11 @@ class AdminDashboardView(ft.View):
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
                         title="📦 คลังวัตถุดิบ & ตัดสต๊อก",
-                        desc="รับของเข้าคลัง (Purchase In), บันทึกของเสีย และสูตรอาหาร BOM",
+                        desc="รับของเข้าคลัง, ตรวจนับสต๊อกจริง, ตัดของเสีย และสูตร BOM",
                         icon=ft.Icons.INVENTORY_2,
                         icon_color=ft.Colors.GREEN_800,
                         btn_label="จัดการคลังสินค้า",
-                        on_click=lambda e: navigate_to(self.page_ref, "/admin/stock")
+                        on_click=lambda e: navigate_to(self.page_ref, "/stock")
                     )
                 ),
                 ft.Container(
@@ -178,8 +178,19 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
-                        title="🍽️ สลับเข้าสู่หน้าร้าน (POS)",
-                        desc="เปิดดูผังโต๊ะหน้าร้าน รับออเดอร์ และคิดเงินลูกค้า",
+                        title="📜 บันทึกประวัติระบบ (Audit Logs)",
+                        desc="ตรวจสอบประวัติการทำงานของพนักงาน ใครทำอะไร เมื่อไหร่",
+                        icon=ft.Icons.SECURITY,
+                        icon_color=ft.Colors.DEEP_PURPLE_800,
+                        btn_label="ดู Audit Logs",
+                        on_click=lambda e: navigate_to(self.page_ref, "/admin/audit")
+                    )
+                ),
+                ft.Container(
+                    col={"sm": 12, "md": 12},
+                    content=self._build_action_card(
+                        title="🍽️ สลับเข้าสู่หน้าร้าน (POS Table Map)",
+                        desc="เปิดดูผังโต๊ะหน้าร้าน รับออเดอร์ Takeaway และคิดเงินลูกค้า",
                         icon=ft.Icons.POINT_OF_SALE,
                         icon_color=ft.Colors.TEAL_800,
                         btn_label="เปิดหน้าร้าน POS",

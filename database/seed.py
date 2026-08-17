@@ -1,32 +1,71 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+import sqlite3
 from datetime import datetime, date, timedelta, timezone
-from database.connection import engine, SessionLocal, Base
+from database.connection import engine, SessionLocal, Base, DB_PATH
 from database.models import (
     User, UserRole, Table, TableStatus, Category, MenuItem,
     ModifierGroup, ModifierOption, Ingredient, RecipeBOM, StockLot
 )
 from services.auth_service import hash_password
 
-def seed_data():
-    Base.metadata.create_all(bind=engine)
-    
-    # Defensive column migration for existing tables
+def migrate_sqlite_columns():
+    """Defensive migration for SQLite to ensure all model columns and schemas match cleanly."""
     try:
-        from sqlalchemy import text
-        with engine.connect() as conn:
-            conn.execute(text("""
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50);
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
-                DO $$ 
-                BEGIN 
-                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='pin_hash') THEN
-                        ALTER TABLE users ALTER COLUMN pin_hash DROP NOT NULL;
-                    END IF;
-                END $$;
-            """))
-            conn.commit()
+        raw_conn = sqlite3.connect("pos_data.db")
+        cursor = raw_conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = OFF;")
+        
+        # 1. Check users table columns
+        cursor.execute("PRAGMA table_info(users);")
+        user_cols = {r[1]: r for r in cursor.fetchall()}
+        
+        if "pin_hash" in user_cols:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username VARCHAR(50) UNIQUE,
+                    name VARCHAR(100) NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role VARCHAR(20) NOT NULL DEFAULT 'CASHIER',
+                    phone VARCHAR(20),
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at DATETIME
+                );
+            """)
+            # Copy data if possible
+            cursor.execute("INSERT OR IGNORE INTO users_new (id, name, role, is_active, created_at, password_hash) SELECT id, name, role, is_active, created_at, pin_hash FROM users;")
+            cursor.execute("DROP TABLE users;")
+            cursor.execute("ALTER TABLE users_new RENAME TO users;")
+        else:
+            if "username" not in user_cols:
+                cursor.execute("ALTER TABLE users ADD COLUMN username VARCHAR(50);")
+            if "password_hash" not in user_cols:
+                cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255);")
+            if "phone" not in user_cols:
+                cursor.execute("ALTER TABLE users ADD COLUMN phone VARCHAR(20);")
+
+        # 2. Check orders table columns
+        cursor.execute("PRAGMA table_info(orders);")
+        existing_order_cols = [r[1] for r in cursor.fetchall()]
+        
+        if "service_charge_amount" not in existing_order_cols:
+            cursor.execute("ALTER TABLE orders ADD COLUMN service_charge_amount NUMERIC(10, 2) DEFAULT 0.0;")
+        if "vat_amount" not in existing_order_cols:
+            cursor.execute("ALTER TABLE orders ADD COLUMN vat_amount NUMERIC(10, 2) DEFAULT 0.0;")
+
+        cursor.execute("PRAGMA foreign_keys = ON;")
+        raw_conn.commit()
+        raw_conn.close()
     except Exception as e:
         print(f"[INFO] Column migration check: {e}")
+
+def seed_data():
+    Base.metadata.create_all(bind=engine)
+    if str(engine.url).startswith("sqlite"):
+        migrate_sqlite_columns()
 
     db = SessionLocal()
 
