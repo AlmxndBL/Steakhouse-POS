@@ -4,6 +4,7 @@ from database.connection import SessionLocal
 from database.models import Ingredient, StockLot
 from services.bom_engine import BOMEngine
 from utils.navigation import navigate_to
+from utils.validators import Validator
 
 class StockView(ft.View):
     def __init__(self, page: ft.Page):
@@ -336,36 +337,38 @@ class StockView(ft.View):
             update_system_stock_info(None)
 
             def submit_stock_take(e_sub):
+                has_error = False
+
                 if not ing_dropdown.value:
                     ing_dropdown.error_text = "กรุณาเลือกวัตถุดิบ"
-                    self._update_ui()
-                    return
+                    has_error = True
+                else:
+                    ing_dropdown.error_text = None
 
-                raw_act = (actual_qty_input.value or "").strip()
-                if not raw_act:
-                    actual_qty_input.error_text = "กรุณากรอกจำนวนที่นับได้จริง"
-                    self._update_ui()
-                    return
-
-                try:
-                    act_qty = float(raw_act)
-                    if act_qty < 0:
-                        actual_qty_input.error_text = "จำนวนต้องไม่ติดลบ"
-                        self._update_ui()
-                        return
+                q_res = Validator.validate_float(actual_qty_input.value, field_name="จำนวนที่นับได้จริง", min_val=0.0, max_val=1000000.0)
+                if not q_res.is_valid:
+                    actual_qty_input.error_text = q_res.error
+                    has_error = True
+                else:
                     actual_qty_input.error_text = None
-                except ValueError:
-                    actual_qty_input.error_text = "กรุณากรอกตัวเลขที่ถูกต้อง"
+
+                r_res = Validator.validate_required_text(reason_input.value, field_name="หมายเหตุการปรับปรุง", min_len=2, max_len=200)
+                if not r_res.is_valid:
+                    reason_input.error_text = r_res.error
+                    has_error = True
+                else:
+                    reason_input.error_text = None
+
+                if has_error:
                     self._update_ui()
                     return
 
                 user_id = self.page_ref.session.store.get("user_id") or 1
                 ing_id = int(ing_dropdown.value)
-                reason = reason_input.value.strip() if reason_input.value else "ปรับปรุงยอดนับสต๊อกจริง"
 
                 db_inner = SessionLocal()
                 try:
-                    res = BOMEngine.adjust_stock(db_inner, ing_id, act_qty, reason, user_id)
+                    res = BOMEngine.adjust_stock(db_inner, ing_id, q_res.value, r_res.value, user_id)
                     self._close_dialog(dialog)
                     self._load_inventory_data()
                     self._show_info_dialog("บันทึกการนับสต๊อกสำเร็จ", f"ปรับปรุงยอดวัตถุดิบ '{res['ingredient_name']}' เป็น {res['actual_qty']:,.2f} เรียบร้อยแล้ว (ส่วนต่าง: {res['variance']:+,.2f})")
@@ -421,46 +424,29 @@ class StockView(ft.View):
                 else:
                     ing_dropdown.error_text = None
 
-                qty = 0.0
-                if not qty_input.value or not qty_input.value.strip():
-                    qty_input.error_text = "กรุณากรอกจำนวนที่รับเข้า"
+                q_res = Validator.validate_float(qty_input.value, field_name="จำนวนที่รับเข้า", min_val=0.001, max_val=1000000.0)
+                if not q_res.is_valid:
+                    qty_input.error_text = q_res.error
                     has_error = True
                 else:
-                    try:
-                        qty = float(qty_input.value.strip())
-                        if qty <= 0:
-                            qty_input.error_text = "จำนวนต้องมากกว่า 0"
-                            has_error = True
-                        else:
-                            qty_input.error_text = None
-                    except ValueError:
-                        qty_input.error_text = "กรุณากรอกจำนวนเป็นตัวเลข (เช่น 500 หรือ 1000.5)"
-                        has_error = True
+                    qty_input.error_text = None
 
-                cost = 0.0
-                if not cost_input.value or not cost_input.value.strip():
-                    cost_input.error_text = "กรุณากรอกราคาต้นทุนต่อหน่วย"
+                c_res = Validator.validate_float(cost_input.value, field_name="ราคาต้นทุนต่อหน่วย", min_val=0.0, max_val=1000000.0)
+                if not c_res.is_valid:
+                    cost_input.error_text = c_res.error
                     has_error = True
                 else:
-                    try:
-                        cost = float(cost_input.value.strip())
-                        if cost < 0:
-                            cost_input.error_text = "ต้นทุนต้องไม่ติดลบ"
-                            has_error = True
-                        else:
-                            cost_input.error_text = None
-                    except ValueError:
-                        cost_input.error_text = "กรุณากรอกราคาต้นทุนเป็นตัวเลข (เช่น 1.5 หรือ 250)"
-                        has_error = True
+                    cost_input.error_text = None
 
                 exp_date = None
                 if exp_input.value and exp_input.value.strip():
-                    try:
-                        exp_date = datetime.strptime(exp_input.value.strip(), "%Y-%m-%d").date()
-                        exp_input.error_text = None
-                    except ValueError:
-                        exp_input.error_text = "รูปแบบวันที่ไม่ถูกต้อง กรุณาใช้ YYYY-MM-DD (เช่น 2026-12-31)"
+                    d_res = Validator.validate_date(exp_input.value, field_name="วันหมดอายุ", allow_past=False)
+                    if not d_res.is_valid:
+                        exp_input.error_text = d_res.error
                         has_error = True
+                    else:
+                        exp_input.error_text = None
+                        exp_date = d_res.value
                 else:
                     exp_input.error_text = None
 
@@ -474,7 +460,7 @@ class StockView(ft.View):
 
                 db_inner = SessionLocal()
                 try:
-                    BOMEngine.receive_stock(db_inner, ing_id, lot_no, qty, cost, exp_date, user_id)
+                    BOMEngine.receive_stock(db_inner, ing_id, lot_no, q_res.value, c_res.value, exp_date, user_id)
                     self._close_dialog(dialog)
                     self._load_inventory_data()
                 except Exception as err:
@@ -526,24 +512,16 @@ class StockView(ft.View):
                 else:
                     ing_dropdown.error_text = None
 
-                qty = 0.0
-                if not qty_input.value or not qty_input.value.strip():
-                    qty_input.error_text = "กรุณากรอกจำนวนที่เสีย"
+                q_res = Validator.validate_float(qty_input.value, field_name="จำนวนที่เสีย", min_val=0.001, max_val=1000000.0)
+                if not q_res.is_valid:
+                    qty_input.error_text = q_res.error
                     has_error = True
                 else:
-                    try:
-                        qty = float(qty_input.value.strip())
-                        if qty <= 0:
-                            qty_input.error_text = "จำนวนต้องมากกว่า 0"
-                            has_error = True
-                        else:
-                            qty_input.error_text = None
-                    except ValueError:
-                        qty_input.error_text = "กรุณากรอกจำนวนเป็นตัวเลข (เช่น 100 หรือ 250.5)"
-                        has_error = True
+                    qty_input.error_text = None
 
-                if not reason_input.value or not reason_input.value.strip():
-                    reason_input.error_text = "กรุณาระบุเหตุผลการตัดของเสีย"
+                r_res = Validator.validate_required_text(reason_input.value, field_name="เหตุผลการตัดของเสีย", min_len=2, max_len=200)
+                if not r_res.is_valid:
+                    reason_input.error_text = r_res.error
                     has_error = True
                 else:
                     reason_input.error_text = None
@@ -554,11 +532,10 @@ class StockView(ft.View):
 
                 user_id = self.page_ref.session.store.get("user_id") or 1
                 ing_id = int(ing_dropdown.value)
-                reason = reason_input.value.strip()
 
                 db_inner = SessionLocal()
                 try:
-                    BOMEngine.record_wastage(db_inner, ing_id, qty, reason, user_id)
+                    BOMEngine.record_wastage(db_inner, ing_id, q_res.value, r_res.value, user_id)
                     self._close_dialog(dialog)
                     self._load_inventory_data()
                 except Exception as err:

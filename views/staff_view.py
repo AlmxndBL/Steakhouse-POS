@@ -3,6 +3,7 @@ from database.connection import SessionLocal
 from database.models import User, UserRole
 from services.staff_service import StaffService
 from utils.navigation import navigate_to
+from utils.validators import Validator
 
 class StaffView(ft.View):
     def __init__(self, page: ft.Page):
@@ -203,23 +204,33 @@ class StaffView(ft.View):
         def submit(e_sub):
             has_error = False
 
-            if not username_input.value or not username_input.value.strip():
-                username_input.error_text = "กรุณากรอกชื่อผู้ใช้"
+            u_res = Validator.validate_username(username_input.value)
+            if not u_res.is_valid:
+                username_input.error_text = u_res.error
                 has_error = True
             else:
                 username_input.error_text = None
 
-            if not name_input.value or not name_input.value.strip():
-                name_input.error_text = "กรุณากรอกชื่อ-นามสกุล"
+            n_res = Validator.validate_required_text(name_input.value, field_name="ชื่อ-นามสกุล", min_len=2, max_len=100)
+            if not n_res.is_valid:
+                name_input.error_text = n_res.error
                 has_error = True
             else:
                 name_input.error_text = None
 
-            if not password_input.value or len(password_input.value.strip()) < 4:
-                password_input.error_text = "รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร"
+            p_res = Validator.validate_password(password_input.value, min_len=4)
+            if not p_res.is_valid:
+                password_input.error_text = p_res.error
                 has_error = True
             else:
                 password_input.error_text = None
+
+            ph_res = Validator.validate_phone(phone_input.value, required=False)
+            if not ph_res.is_valid:
+                phone_input.error_text = ph_res.error
+                has_error = True
+            else:
+                phone_input.error_text = None
 
             if has_error:
                 self._update_ui()
@@ -230,11 +241,11 @@ class StaffView(ft.View):
                 selected_role = UserRole(role_dropdown.value)
                 StaffService.create_staff(
                     db,
-                    username=username_input.value.strip(),
-                    name=name_input.value.strip(),
+                    username=u_res.value,
+                    name=n_res.value,
                     password=password_input.value.strip(),
                     role=selected_role,
-                    phone=phone_input.value.strip() if phone_input.value else None
+                    phone=ph_res.value
                 )
                 self._close_dialog(dialog)
                 self._load_staff_data()
@@ -281,8 +292,23 @@ class StaffView(ft.View):
             )
 
             def submit(e_sub):
-                if not name_input.value or not name_input.value.strip():
-                    name_input.error_text = "กรุณากรอกชื่อ-นามสกุล"
+                has_error = False
+
+                n_res = Validator.validate_required_text(name_input.value, field_name="ชื่อ-นามสกุล", min_len=2, max_len=100)
+                if not n_res.is_valid:
+                    name_input.error_text = n_res.error
+                    has_error = True
+                else:
+                    name_input.error_text = None
+
+                ph_res = Validator.validate_phone(phone_input.value, required=False)
+                if not ph_res.is_valid:
+                    phone_input.error_text = ph_res.error
+                    has_error = True
+                else:
+                    phone_input.error_text = None
+
+                if has_error:
                     self._update_ui()
                     return
 
@@ -292,9 +318,9 @@ class StaffView(ft.View):
                     StaffService.update_staff(
                         db_inner,
                         user_id=user_id,
-                        name=name_input.value.strip(),
+                        name=n_res.value,
                         role=selected_role,
-                        phone=phone_input.value.strip() if phone_input.value else None,
+                        phone=ph_res.value,
                         is_active=user.is_active
                     )
                     self._close_dialog(dialog)
@@ -330,8 +356,9 @@ class StaffView(ft.View):
             new_pw_input = ft.TextField(label="รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)", password=True, can_reveal_password=True, width=380)
 
             def submit(e_sub):
-                if not new_pw_input.value or len(new_pw_input.value.strip()) < 4:
-                    new_pw_input.error_text = "รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร"
+                p_res = Validator.validate_password(new_pw_input.value, min_len=4)
+                if not p_res.is_valid:
+                    new_pw_input.error_text = p_res.error
                     self._update_ui()
                     return
 

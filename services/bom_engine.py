@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from database.models import (
     Order, OrderItem, RecipeBOM, Ingredient, StockLot, StockTransaction, StockTxType, AuditLog
 )
+from utils.validators import Validator
 
 class BOMEngine:
     @staticmethod
@@ -87,6 +88,14 @@ class BOMEngine:
         """
         Records ingredient wastage (เนื้อเสีย / ทำหล่น) using FIFO/FEFO deduction from active lots.
         """
+        q_res = Validator.validate_float(qty, field_name="จำนวนของเสีย", min_val=0.001, max_val=1000000.0)
+        if not q_res.is_valid:
+            raise ValueError(q_res.error)
+
+        r_res = Validator.validate_required_text(reason, field_name="เหตุผลของเสีย", min_len=2, max_len=255)
+        if not r_res.is_valid:
+            raise ValueError(r_res.error)
+
         lots = db.query(StockLot).filter(
             StockLot.ingredient_id == ingredient_id,
             StockLot.remaining_quantity > 0,
@@ -96,7 +105,7 @@ class BOMEngine:
             StockLot.received_date.asc()
         ).all()
 
-        remaining_to_deduct = Decimal(str(qty))
+        remaining_to_deduct = Decimal(str(q_res.value))
         for lot in lots:
             if remaining_to_deduct <= Decimal('0'):
                 break
@@ -112,7 +121,7 @@ class BOMEngine:
                 lot_id=lot.id,
                 tx_type=StockTxType.WASTAGE,
                 quantity=-float(deduct_from_lot),
-                reason=reason or "ตัดของเสีย (Wastage)",
+                reason=r_res.value,
                 user_id=user_id,
                 timestamp=datetime.now(timezone.utc)
             )
@@ -124,7 +133,7 @@ class BOMEngine:
             action="RECORD_WASTAGE",
             target_type="Ingredient",
             target_id=ingredient_id,
-            details_json=f'{{"qty": {qty}, "reason": "{reason}"}}'
+            details_json=f'{{"qty": {q_res.value}, "reason": "{r_res.value}"}}'
         )
         db.add(audit)
         db.commit()
@@ -136,6 +145,18 @@ class BOMEngine:
         Records receiving new stock (Purchase In).
         Creates a new StockLot and records a StockTransaction.
         """
+        q_res = Validator.validate_float(qty, field_name="จำนวนที่รับเข้า", min_val=0.001, max_val=1000000.0)
+        if not q_res.is_valid:
+            raise ValueError(q_res.error)
+
+        c_res = Validator.validate_float(unit_cost, field_name="ต้นทุนต่อหน่วย", min_val=0.0, max_val=1000000.0)
+        if not c_res.is_valid:
+            raise ValueError(c_res.error)
+
+        lot_clean = str(lot_number).strip() if lot_number else f"LOT-{datetime.now().strftime('%Y%m%d%H%M')}"
+        if not lot_clean:
+            lot_clean = f"LOT-{datetime.now().strftime('%Y%m%d%H%M')}"
+
         ingredient = db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
         if not ingredient:
             raise ValueError(f"Ingredient ID {ingredient_id} not found")
@@ -143,10 +164,10 @@ class BOMEngine:
         # Create StockLot
         new_lot = StockLot(
             ingredient_id=ingredient_id,
-            lot_number=lot_number,
-            initial_quantity=Decimal(str(qty)),
-            remaining_quantity=Decimal(str(qty)),
-            unit_cost=Decimal(str(unit_cost)),
+            lot_number=lot_clean,
+            initial_quantity=Decimal(str(q_res.value)),
+            remaining_quantity=Decimal(str(q_res.value)),
+            unit_cost=Decimal(str(c_res.value)),
             expiry_date=expiry_date,
             received_date=datetime.now(timezone.utc),
             is_depleted=False

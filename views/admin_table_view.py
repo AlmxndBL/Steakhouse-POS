@@ -3,6 +3,7 @@ from database.connection import SessionLocal
 from database.models import TableStatus
 from services.table_service import TableService
 from utils.navigation import navigate_to
+from utils.validators import Validator
 
 class AdminTableView(ft.View):
     def __init__(self, page: ft.Page):
@@ -167,27 +168,19 @@ class AdminTableView(ft.View):
         def submit(e_sub):
             has_error = False
 
-            if not num_input.value or not num_input.value.strip():
-                num_input.error_text = "กรุณากรอกหมายเลขโต๊ะ (เช่น T01 หรือ VIP1)"
+            t_res = Validator.validate_table_number(num_input.value)
+            if not t_res.is_valid:
+                num_input.error_text = t_res.error
                 has_error = True
             else:
                 num_input.error_text = None
 
-            raw_cap = (cap_input.value or "").strip()
-            if not raw_cap:
-                cap_input.error_text = "กรุณากรอกจำนวนที่นั่ง"
+            c_res = Validator.validate_integer(cap_input.value, field_name="จำนวนที่นั่ง", min_val=1, max_val=50)
+            if not c_res.is_valid:
+                cap_input.error_text = c_res.error
                 has_error = True
             else:
-                try:
-                    cap = int(raw_cap)
-                    if cap <= 0:
-                        cap_input.error_text = "จำนวนที่นั่งต้องมากกว่า 0"
-                        has_error = True
-                    else:
-                        cap_input.error_text = None
-                except ValueError:
-                    cap_input.error_text = "กรุณากรอกจำนวนที่นั่งเป็นตัวเลขจำนวนเต็มเท่านั้น (เช่น 2 หรือ 4)"
-                    has_error = True
+                cap_input.error_text = None
 
             if has_error:
                 self._update_ui()
@@ -195,11 +188,10 @@ class AdminTableView(ft.View):
 
             db = SessionLocal()
             try:
-                cap = int(raw_cap)
                 TableService.create_table(
                     db,
-                    table_number=num_input.value.strip(),
-                    capacity=cap,
+                    table_number=t_res.value,
+                    capacity=c_res.value,
                     zone=zone_dropdown.value or "Indoor"
                 )
                 self._close_dialog(dialog)
@@ -248,27 +240,19 @@ class AdminTableView(ft.View):
             def submit(e_sub):
                 has_error = False
 
-                if not num_input.value or not num_input.value.strip():
-                    num_input.error_text = "กรุณากรอกหมายเลขโต๊ะ"
+                t_res = Validator.validate_table_number(num_input.value)
+                if not t_res.is_valid:
+                    num_input.error_text = t_res.error
                     has_error = True
                 else:
                     num_input.error_text = None
 
-                raw_cap = (cap_input.value or "").strip()
-                if not raw_cap:
-                    cap_input.error_text = "กรุณากรอกจำนวนที่นั่ง"
+                c_res = Validator.validate_integer(cap_input.value, field_name="จำนวนที่นั่ง", min_val=1, max_val=50)
+                if not c_res.is_valid:
+                    cap_input.error_text = c_res.error
                     has_error = True
                 else:
-                    try:
-                        cap = int(raw_cap)
-                        if cap <= 0:
-                            cap_input.error_text = "จำนวนที่นั่งต้องมากกว่า 0"
-                            has_error = True
-                        else:
-                            cap_input.error_text = None
-                    except ValueError:
-                        cap_input.error_text = "กรุณากรอกจำนวนที่นั่งเป็นตัวเลขจำนวนเต็มเท่านั้น (เช่น 2 หรือ 4)"
-                        has_error = True
+                    cap_input.error_text = None
 
                 if has_error:
                     self._update_ui()
@@ -276,12 +260,11 @@ class AdminTableView(ft.View):
 
                 db_inner = SessionLocal()
                 try:
-                    cap = int(raw_cap)
                     TableService.update_table(
                         db_inner,
                         table_id=table_id,
-                        table_number=num_input.value.strip(),
-                        capacity=cap,
+                        table_number=t_res.value,
+                        capacity=c_res.value,
                         zone=zone_dropdown.value or "Indoor"
                     )
                     self._close_dialog(dialog)

@@ -2,6 +2,7 @@ import flet as ft
 from database.connection import SessionLocal
 from services.menu_service import MenuService
 from utils.navigation import navigate_to
+from utils.validators import Validator
 
 class AdminMenuView(ft.View):
     def __init__(self, page: ft.Page):
@@ -199,33 +200,26 @@ class AdminMenuView(ft.View):
             def submit(e_sub):
                 has_error = False
 
-                if not code_input.value or not code_input.value.strip():
-                    code_input.error_text = "กรุณากรอกรหัสเมนู (เช่น STK001)"
+                c_res = Validator.validate_menu_code(code_input.value)
+                if not c_res.is_valid:
+                    code_input.error_text = c_res.error
                     has_error = True
                 else:
                     code_input.error_text = None
 
-                if not name_input.value or not name_input.value.strip():
-                    name_input.error_text = "กรุณากรอกชื่อเมนูอาหาร"
+                n_res = Validator.validate_required_text(name_input.value, field_name="ชื่อเมนูอาหาร", min_len=2, max_len=100)
+                if not n_res.is_valid:
+                    name_input.error_text = n_res.error
                     has_error = True
                 else:
                     name_input.error_text = None
 
-                raw_price = (price_input.value or "").strip()
-                if not raw_price:
-                    price_input.error_text = "กรุณากรอกราคาขาย"
+                p_res = Validator.validate_price(price_input.value, min_val=0.01, max_val=100000.0, field_name="ราคาขาย")
+                if not p_res.is_valid:
+                    price_input.error_text = p_res.error
                     has_error = True
                 else:
-                    try:
-                        price = float(raw_price)
-                        if price < 0:
-                            price_input.error_text = "ราคาต้องไม่ติดลบ"
-                            has_error = True
-                        else:
-                            price_input.error_text = None
-                    except ValueError:
-                        price_input.error_text = "กรุณากรอกราคาเป็นตัวเลขเท่านั้น (เช่น 250 หรือ 199.50)"
-                        has_error = True
+                    price_input.error_text = None
 
                 if has_error:
                     self._update_ui()
@@ -233,14 +227,13 @@ class AdminMenuView(ft.View):
 
                 db_inner = SessionLocal()
                 try:
-                    price = float(raw_price)
                     selected_cat_id = int(cat_dropdown.value) if cat_dropdown.value else categories[0].id
                     MenuService.create_menu_item(
                         db_inner,
                         category_id=selected_cat_id,
-                        code=code_input.value.strip(),
-                        name=name_input.value.strip(),
-                        price=price,
+                        code=c_res.value,
+                        name=n_res.value,
+                        price=p_res.value,
                         description=desc_input.value.strip() if desc_input.value else None
                     )
                     self._close_dialog(dialog)
@@ -285,27 +278,19 @@ class AdminMenuView(ft.View):
             def submit(e_sub):
                 has_error = False
 
-                if not name_input.value or not name_input.value.strip():
-                    name_input.error_text = "กรุณากรอกชื่อเมนูอาหาร"
+                n_res = Validator.validate_required_text(name_input.value, field_name="ชื่อเมนูอาหาร", min_len=2, max_len=100)
+                if not n_res.is_valid:
+                    name_input.error_text = n_res.error
                     has_error = True
                 else:
                     name_input.error_text = None
 
-                raw_price = (price_input.value or "").strip()
-                if not raw_price:
-                    price_input.error_text = "กรุณากรอกราคาขาย"
+                p_res = Validator.validate_price(price_input.value, min_val=0.01, max_val=100000.0, field_name="ราคาขาย")
+                if not p_res.is_valid:
+                    price_input.error_text = p_res.error
                     has_error = True
                 else:
-                    try:
-                        price = float(raw_price)
-                        if price < 0:
-                            price_input.error_text = "ราคาต้องไม่ติดลบ"
-                            has_error = True
-                        else:
-                            price_input.error_text = None
-                    except ValueError:
-                        price_input.error_text = "กรุณากรอกราคาเป็นตัวเลขเท่านั้น (เช่น 250 หรือ 199.50)"
-                        has_error = True
+                    price_input.error_text = None
 
                 if has_error:
                     self._update_ui()
@@ -313,13 +298,12 @@ class AdminMenuView(ft.View):
 
                 db_inner = SessionLocal()
                 try:
-                    price = float(raw_price)
                     selected_cat_id = int(cat_dropdown.value) if cat_dropdown.value else item.category_id
                     MenuService.update_menu_item(
                         db_inner,
                         item_id=item_id,
-                        name=name_input.value.strip(),
-                        price=price,
+                        name=n_res.value,
+                        price=p_res.value,
                         category_id=selected_cat_id,
                         description=desc_input.value.strip() if desc_input.value else None,
                         is_active=active_switch.value
@@ -354,23 +338,19 @@ class AdminMenuView(ft.View):
         def submit(e_sub):
             has_error = False
 
-            if not cat_name_input.value or not cat_name_input.value.strip():
-                cat_name_input.error_text = "กรุณากรอกชื่อหมวดหมู่"
+            n_res = Validator.validate_required_text(cat_name_input.value, field_name="ชื่อหมวดหมู่", min_len=1, max_len=100)
+            if not n_res.is_valid:
+                cat_name_input.error_text = n_res.error
                 has_error = True
             else:
                 cat_name_input.error_text = None
 
-            raw_sort = (sort_input.value or "").strip()
-            if not raw_sort:
-                sort_input.error_text = "กรุณากรอกลำดับ"
+            s_res = Validator.validate_integer(sort_input.value, field_name="ลำดับการแสดงผล", min_val=0, max_val=10000)
+            if not s_res.is_valid:
+                sort_input.error_text = s_res.error
                 has_error = True
             else:
-                try:
-                    sort_val = int(raw_sort)
-                    sort_input.error_text = None
-                except ValueError:
-                    sort_input.error_text = "กรุณากรอกเป็นตัวเลขจำนวนเต็มเท่านั้น"
-                    has_error = True
+                sort_input.error_text = None
 
             if has_error:
                 self._update_ui()
@@ -380,8 +360,8 @@ class AdminMenuView(ft.View):
             try:
                 MenuService.create_category(
                     db,
-                    name=cat_name_input.value.strip(),
-                    sort_order=int(raw_sort)
+                    name=n_res.value,
+                    sort_order=s_res.value
                 )
                 self._close_dialog(dialog)
                 self._load_menu_data()

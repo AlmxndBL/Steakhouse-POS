@@ -96,10 +96,23 @@ class KdsView(ft.View):
             spacing=0
         )
         
+        # Subscribe to Real-time PubSub Channel
+        if hasattr(self.page_ref, "pubsub") and self.page_ref.pubsub:
+            try:
+                self.page_ref.pubsub.subscribe_topic("kds_orders_channel", self._handle_pubsub_order)
+            except Exception:
+                pass
+
         self._auto_refresh()
         
+    def _handle_pubsub_order(self, topic, message):
+        try:
+            self._load_data()
+        except Exception:
+            pass
+
     def _auto_refresh(self):
-        self._refresh_timer = threading.Timer(15.0, self._auto_refresh)
+        self._refresh_timer = threading.Timer(5.0, self._auto_refresh)
         self._refresh_timer.daemon = True
         self._refresh_timer.start()
         try:

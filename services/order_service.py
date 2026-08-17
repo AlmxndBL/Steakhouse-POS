@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
+from decimal import Decimal, ROUND_HALF_UP
 from database.models import (
     Table, TableStatus, Order, OrderItem, OrderType, OrderStatus,
     MenuItem, AuditLog
@@ -116,28 +117,33 @@ class OrderService:
 
     @staticmethod
     def _recalculate_order_totals(db: Session, order: Order, discount=None):
-        """Recalculate order totals. If discount is None, preserves existing discount."""
-        subtotal = 0.0
-        for item in order.items:
-            subtotal += float(item.price_per_unit) * item.quantity
+        """Recalculate order totals with high financial Decimal precision (ROUND_HALF_UP)."""
+        items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+        subtotal = Decimal('0.00')
+        for item in items:
+            unit_p = Decimal(str(item.price_per_unit))
+            subtotal += unit_p * Decimal(str(item.quantity))
 
-        order.subtotal = subtotal
+        order.subtotal = float(subtotal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
         
         # Preserve existing discount if not explicitly passed
         if discount is not None:
-            order.discount_amount = max(0.0, min(float(discount), subtotal))  # Clamp: 0 ≤ discount ≤ subtotal
+            disc_in = Decimal(str(discount))
+            order.discount_amount = float(max(Decimal('0.00'), min(disc_in, subtotal)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
         
-        disc = float(order.discount_amount or 0.0)
-        sub_after_disc = max(0.0, subtotal - disc)
+        disc = Decimal(str(order.discount_amount or 0.0))
+        sub_after_disc = max(Decimal('0.00'), subtotal - disc)
         
         # 10% Service Charge
-        order.service_charge_amount = round(sub_after_disc * 0.10, 2)
+        sc_val = (sub_after_disc * Decimal('0.10')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        order.service_charge_amount = float(sc_val)
         
         # 7% VAT (Exclude VAT logic: calculate on subtotal + SC)
-        sc = float(order.service_charge_amount)
-        order.vat_amount = round((sub_after_disc + sc) * 0.07, 2)
+        vat_val = ((sub_after_disc + sc_val) * Decimal('0.07')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        order.vat_amount = float(vat_val)
         
-        order.net_amount = round(sub_after_disc + sc + float(order.vat_amount), 2)
+        net_val = (sub_after_disc + sc_val + vat_val).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        order.net_amount = float(net_val)
 
     @staticmethod
     def checkout_order(

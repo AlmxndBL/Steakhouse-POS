@@ -51,5 +51,35 @@ class TestFormValidation(unittest.TestCase):
             with self.assertRaises(ValueError):
                 datetime.strptime(inp, "%Y-%m-%d")
 
+    def test_staff_service_form_validations(self):
+        """Test StaffService raises ValueError on invalid form data."""
+        from services.staff_service import StaffService
+        from database.models import UserRole
+
+        # Invalid username (special chars)
+        with self.assertRaises(ValueError):
+            StaffService.create_staff(self.db, "bad@user", "สมชาย ใจดี", "1234", UserRole.WAITER)
+
+        # Invalid password (< 4 chars)
+        with self.assertRaises(ValueError):
+            StaffService.create_staff(self.db, "validuser", "สมชาย ใจดี", "12", UserRole.WAITER)
+
+        # Invalid phone
+        with self.assertRaises(ValueError):
+            StaffService.create_staff(self.db, "validuser2", "สมชาย ใจดี", "1234", UserRole.WAITER, phone="12345")
+
+    def test_menu_and_table_service_form_validations(self):
+        """Test MenuService and TableService form validations."""
+        from services.menu_service import MenuService
+        from services.table_service import TableService
+
+        # Invalid menu price (<= 0)
+        with self.assertRaises(ValueError):
+            MenuService.create_menu_item(self.db, category_id=1, code="TEST01", name="เมนูทดสอบ", price=-50.0)
+
+        # Invalid table capacity (<= 0 or > 50)
+        with self.assertRaises(ValueError):
+            TableService.create_table(self.db, table_number="TEST_TBL", capacity=0)
+
 if __name__ == '__main__':
     unittest.main()

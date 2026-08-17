@@ -6,6 +6,7 @@ from services.order_service import OrderService
 from services.menu_service import MenuService
 from components.ereceipt_modal import EReceiptModal
 from utils.navigation import navigate_to
+from utils.validators import Validator
 
 class PosMainView(ft.View):
     def __init__(self, page: ft.Page):
@@ -394,6 +395,13 @@ class PosMainView(ft.View):
                     pass
                 return
             
+            # Publish real-time notification to Kitchen Display
+            try:
+                if hasattr(self.page_ref, "pubsub") and self.page_ref.pubsub:
+                    self.page_ref.pubsub.send_all_on_topic("kds_orders_channel", {"event": "NEW_ORDER", "order": order.order_number})
+            except Exception:
+                pass
+
             # Show success toast and navigate to tables
             self.page_ref.snack_bar = ft.SnackBar(
                 ft.Text(f"✅ ส่งรายการอาหาร #{order.order_number} ({order.customer_name}) เข้าครัวและบันทึกโต๊ะเรียบร้อยแล้ว"),
@@ -452,11 +460,14 @@ class PosMainView(ft.View):
             net_modal_text = ft.Text(f"{initial_net:,.2f} ฿", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
 
             def recalc_modal(e_change):
-                try:
-                    disc = float(discount_input.value or 0)
-                except ValueError:
+                d_res = Validator.validate_discount(discount_input.value, subtotal=subtotal_val)
+                if not d_res.is_valid:
+                    discount_input.error_text = d_res.error
                     disc = 0.0
-                disc = max(0.0, min(disc, subtotal_val))
+                else:
+                    discount_input.error_text = None
+                    disc = d_res.value
+
                 sub_after = max(0.0, subtotal_val - disc)
                 sc = round(sub_after * 0.10, 2)
                 vat = round((sub_after + sc) * 0.07, 2)
@@ -472,10 +483,16 @@ class PosMainView(ft.View):
             discount_input.on_change = recalc_modal
 
             def do_checkout_confirm(e_click):
-                try:
-                    disc_final = float(discount_input.value or 0)
-                except ValueError:
-                    disc_final = 0.0
+                d_res = Validator.validate_discount(discount_input.value, subtotal=subtotal_val)
+                if not d_res.is_valid:
+                    discount_input.error_text = d_res.error
+                    try:
+                        checkout_dialog.update()
+                    except Exception:
+                        pass
+                    return
+
+                disc_final = d_res.value
                 pm_final = payment_dropdown.value or "เงินสด (CASH)"
                 self._close_dialog(checkout_dialog)
                 self._execute_checkout(pm_final, disc_final)

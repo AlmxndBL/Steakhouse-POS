@@ -19,6 +19,7 @@ venv.bak/
 *.db-shm
 *.db-wal
 *.sqlite3
+backups/
 
 # OS generated files
 .DS_Store

@@ -2,6 +2,7 @@ import flet as ft
 from database.connection import SessionLocal
 from services.auth_service import AuthService
 from utils.navigation import navigate_to
+from utils.validators import Validator
 
 class LoginView(ft.View):
     def __init__(self, page: ft.Page):
@@ -130,18 +131,18 @@ class LoginView(ft.View):
         self._handle_login(None)
 
     def _handle_login(self, e):
-        username = (self.username_input.value or "").strip()
-        password = (self.password_input.value or "").strip()
+        u_res = Validator.validate_required_text(self.username_input.value, field_name="ชื่อผู้ใช้", min_len=1)
+        p_res = Validator.validate_required_text(self.password_input.value, field_name="รหัสผ่าน", min_len=1)
 
         has_error = False
-        if not username:
-            self.username_input.error_text = "กรุณากรอกชื่อผู้ใช้"
+        if not u_res.is_valid:
+            self.username_input.error_text = u_res.error
             has_error = True
         else:
             self.username_input.error_text = None
 
-        if not password:
-            self.password_input.error_text = "กรุณากรอกรหัสผ่าน"
+        if not p_res.is_valid:
+            self.password_input.error_text = p_res.error
             has_error = True
         else:
             self.password_input.error_text = None
