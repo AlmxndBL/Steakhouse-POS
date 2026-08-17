@@ -64,5 +64,16 @@ class TestSettingsCRUD(unittest.TestCase):
         deleted = TableService.delete_table(self.db, table.id)
         self.assertTrue(deleted)
 
+    def test_admin_menu_dialog_controls_instantiation(self):
+        """Test that AdminMenuView form controls instantiate without TypeError (e.g. min_lines vs rows)."""
+        import flet as ft
+        # Test TextField with min_lines
+        desc_input_1 = ft.TextField(label="คำอธิบายสั้นๆ (ถ้ามี)", multiline=True, min_lines=2, width=380)
+        self.assertEqual(desc_input_1.min_lines, 2)
+        self.assertTrue(desc_input_1.multiline)
+
+        desc_input_2 = ft.TextField(label="คำอธิบาย", value="รายละเอียด", multiline=True, min_lines=2, width=380)
+        self.assertEqual(desc_input_2.value, "รายละเอียด")
+
 if __name__ == '__main__':
     unittest.main()

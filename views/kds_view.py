@@ -8,23 +8,38 @@ class KdsView(ft.View):
     def __init__(self, page: ft.Page):
         self.page_ref = page
         
+        user_role = page.session.store.get("user_role") or "KITCHEN"
+        
+        left_controls = []
+        if user_role in ["OWNER", "MANAGER"]:
+            left_controls.append(
+                ft.IconButton(
+                    ft.Icons.ARROW_BACK,
+                    icon_color=ft.Colors.WHITE,
+                    tooltip="กลับหน้าผังโต๊ะ",
+                    on_click=lambda e: navigate_to(self.page_ref, "/tables")
+                )
+            )
+        else:
+            left_controls.append(ft.Icon(ft.Icons.KITCHEN, color=ft.Colors.WHITE, size=28))
+            
+        left_controls.append(
+            ft.Column(
+                spacing=2,
+                controls=[
+                    ft.Text("Kitchen Display System (KDS)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                    ft.Text("ระบบจัดการคิวอาหารในครัว (สำหรับเชฟและพนักงานครัว)", size=12, color=ft.Colors.ORANGE_200)
+                ]
+            )
+        )
+
         nav_header = ft.Container(
             padding=ft.Padding.symmetric(horizontal=25, vertical=15),
             bgcolor=ft.Colors.ORANGE_900,
             content=ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
-                    ft.Row(
-                        spacing=15,
-                        controls=[
-                            ft.IconButton(
-                                ft.Icons.ARROW_BACK,
-                                icon_color=ft.Colors.WHITE,
-                                on_click=lambda e: navigate_to(self.page_ref, "/login" if self.page_ref.session.store.get("user_role") == "KITCHEN" else "/tables")
-                            ),
-                            ft.Text("Kitchen Display System (KDS)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
-                        ]
-                    ),
+                    ft.Row(spacing=15, controls=left_controls),
                     ft.Row(
                         spacing=10,
                         controls=[
@@ -124,25 +139,37 @@ class KdsView(ft.View):
                 pass
                 
         table_name = item.order.customer_name if item.order else "Unknown"
+        time_str = item.order.created_at.strftime("%H:%M น.") if (item.order and item.order.created_at) else ""
         
         # Action Button
         if item.item_status == OrderItemStatus.PENDING:
-            btn = ft.ElevatedButton("เริ่มทำ", style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_500, color=ft.Colors.WHITE), on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.COOKING))
+            btn = ft.ElevatedButton("เริ่มทำ (Cook)", icon=ft.Icons.PLAY_ARROW, style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_500, color=ft.Colors.WHITE), on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.COOKING))
         else:
-            btn = ft.ElevatedButton("เสร็จแล้ว", style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE), on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.SERVED))
+            btn = ft.ElevatedButton("เสร็จแล้ว (Served)", icon=ft.Icons.CHECK, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE), on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.SERVED))
             
         return ft.Card(
             elevation=2,
             content=ft.Container(
-                padding=12,
+                padding=14,
                 content=ft.Column([
                     ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[
-                        ft.Text(f"{item.menu_item.name} x{item.quantity}", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Text(table_name, size=14, color=ft.Colors.BLUE_900, weight=ft.FontWeight.BOLD)
+                        ft.Text(f"{item.menu_item.name} x{item.quantity}", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
+                        ft.Container(
+                            content=ft.Text(table_name, size=13, color=ft.Colors.BLUE_900, weight=ft.FontWeight.BOLD),
+                            bgcolor=ft.Colors.BLUE_50,
+                            padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                            border_radius=6
+                        )
                     ]),
-                    ft.Text(f"ตัวเลือก:{opt_str}" if opt_str else "ตัวเลือก: -", size=12, color=ft.Colors.GREY_700),
-                    btn
-                ])
+                    ft.Text(f"ตัวเลือก: {opt_str}" if opt_str else "ตัวเลือก: ไม่มี", size=12, color=ft.Colors.GREY_700),
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        controls=[
+                            ft.Text(f"🕒 {time_str}" if time_str else "", size=11, color=ft.Colors.GREY_500),
+                            btn
+                        ]
+                    )
+                ], spacing=8)
             )
         )
         

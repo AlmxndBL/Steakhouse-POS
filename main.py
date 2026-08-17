@@ -41,9 +41,24 @@ def main(page: ft.Page):
         ]
         if route in admin_routes:
             if user_role not in ["OWNER", "MANAGER"]:
-                # Redirect unauthorized users back to tables
-                route = "/tables"
-                page.route = "/tables"
+                # Redirect unauthorized users to their designated workspace
+                if user_role == "KITCHEN":
+                    route = "/kds"
+                    page.route = "/kds"
+                else:
+                    route = "/tables"
+                    page.route = "/tables"
+
+        # RBAC Check for KDS (Kitchen Display System)
+        if route == "/kds" and user_role not in ["OWNER", "MANAGER", "KITCHEN"]:
+            # Waiter / Cashier cannot access KDS
+            route = "/tables"
+            page.route = "/tables"
+
+        # RBAC Check for POS / Tables (Kitchen staff cannot access Front-of-house)
+        if route in ["/tables", "/pos"] and user_role == "KITCHEN":
+            route = "/kds"
+            page.route = "/kds"
 
         if route == "/login":
             page.views.append(LoginView(page))

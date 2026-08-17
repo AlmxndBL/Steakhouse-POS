@@ -194,7 +194,7 @@ class AdminMenuView(ft.View):
             code_input = ft.TextField(label="รหัสเมนู (เช่น STK001)", width=380)
             name_input = ft.TextField(label="ชื่อเมนูอาหาร", width=380)
             price_input = ft.TextField(label="ราคาขาย (บาท)", width=380)
-            desc_input = ft.TextField(label="คำอธิบายสั้นๆ (ถ้ามี)", multiline=True, rows=2, width=380)
+            desc_input = ft.TextField(label="คำอธิบายสั้นๆ (ถ้ามี)", multiline=True, min_lines=2, width=380)
 
             def submit(e_sub):
                 has_error = False
@@ -279,7 +279,7 @@ class AdminMenuView(ft.View):
             cat_dropdown = ft.Dropdown(label="หมวดหมู่อาหาร", options=cat_options, value=str(item.category_id), width=380)
             name_input = ft.TextField(label="ชื่อเมนูอาหาร", value=item.name, width=380)
             price_input = ft.TextField(label="ราคาขาย (บาท)", value=str(float(item.price)), width=380)
-            desc_input = ft.TextField(label="คำอธิบาย", value=item.description or "", multiline=True, rows=2, width=380)
+            desc_input = ft.TextField(label="คำอธิบาย", value=item.description or "", multiline=True, min_lines=2, width=380)
             active_switch = ft.Switch(label="เปิดขายเมนูนี้", value=item.is_active)
 
             def submit(e_sub):

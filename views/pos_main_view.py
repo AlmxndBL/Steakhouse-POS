@@ -12,27 +12,16 @@ class PosMainView(ft.View):
         self.page_ref = page
         self.order_id = page.session.store.get("active_order_id")
         user_name = page.session.store.get("user_name") or "พนักงาน"
+        self.user_role = page.session.store.get("user_role") or "CASHIER"
 
         self.selected_category_id = None
         self._cached_net_amount = 0.0
         self.cart_items_list = ft.ListView(expand=True, spacing=10, padding=10)
-        self.subtotal_text = ft.Text("0.00 THB", size=18, weight=ft.FontWeight.BOLD)
-        self.sc_text = ft.Text("0.00 THB", size=14)
-        self.vat_text = ft.Text("0.00 THB", size=14)
-        self.discount_input = ft.TextField(value="0", label="ส่วนลด (บาท)", width=120, keyboard_type=ft.KeyboardType.NUMBER, on_change=self._on_discount_change)
+        self.subtotal_text = ft.Text("0.00 THB", size=14, weight=ft.FontWeight.W_500, color=ft.Colors.GREY_800)
+        self.sc_text = ft.Text("0.00 THB", size=13, color=ft.Colors.GREY_600)
+        self.vat_text = ft.Text("0.00 THB", size=13, color=ft.Colors.GREY_600)
         self.net_total_text = ft.Text("0.00 THB", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
         self.order_title_text = ft.Text("รายการออเดอร์", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
-        
-        self.payment_dropdown = ft.Dropdown(
-            label="ช่องทางชำระเงิน",
-            width=200,
-            value="เงินสด (CASH)",
-            options=[
-                ft.dropdown.Option("เงินสด (CASH)"),
-                ft.dropdown.Option("สแกน QR พร้อมเพย์"),
-                ft.dropdown.Option("บัตรเครดิต/เดบิต")
-            ]
-        )
 
         # Premium Theme Colors
         primary_color = ft.Colors.BLUE_800
@@ -91,6 +80,52 @@ class PosMainView(ft.View):
             ]
         )
 
+        # Action Buttons based on Role (Option A: Send to Kitchen vs Checkout)
+        btn_send_kitchen = ft.ElevatedButton(
+            "👨‍🍳 ส่งเข้าครัว / บันทึกโต๊ะ",
+            icon=ft.Icons.KITCHEN,
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.ORANGE_800,
+                color=ft.Colors.WHITE,
+                padding=ft.Padding.symmetric(vertical=15, horizontal=12),
+                shape=ft.RoundedRectangleBorder(radius=10)
+            ),
+            expand=True if self.user_role != "WAITER" else False,
+            width=300 if self.user_role == "WAITER" else None,
+            on_click=self._handle_send_to_kitchen
+        )
+
+        btn_checkout = ft.ElevatedButton(
+            "💵 เช็คบิล / ชำระเงิน",
+            icon=ft.Icons.PAYMENT,
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.GREEN_600,
+                color=ft.Colors.WHITE,
+                padding=ft.Padding.symmetric(vertical=15, horizontal=12),
+                shape=ft.RoundedRectangleBorder(radius=10)
+            ),
+            expand=True,
+            on_click=self._open_checkout_dialog
+        )
+
+        if self.user_role == "WAITER":
+            action_section = ft.Column(
+                spacing=8,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                controls=[
+                    btn_send_kitchen,
+                    ft.Container(
+                        content=ft.Text("🍽️ พนักงานเสิร์ฟ: สั่งอาหารเข้าครัว (การคิดเงินดำเนินการโดยแคชเชียร์)", size=11, color=ft.Colors.BLUE_GREY_600, text_align=ft.TextAlign.CENTER),
+                        padding=ft.Padding.symmetric(vertical=2)
+                    )
+                ]
+            )
+        else:
+            action_section = ft.Row(
+                spacing=10,
+                controls=[btn_send_kitchen, btn_checkout]
+            )
+
         # Right Column: Cart & Payment Sidebar
         right_layout = ft.Container(
             col={"sm": 12, "md": 5, "lg": 4},
@@ -100,7 +135,7 @@ class PosMainView(ft.View):
             padding=25,
             content=ft.Column(
                 expand=True,
-                spacing=20,
+                spacing=16,
                 controls=[
                     ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -113,22 +148,15 @@ class PosMainView(ft.View):
                     ft.Container(expand=True, content=self.cart_items_list),
                     ft.Divider(height=1, color=ft.Colors.GREY_200),
                     ft.Column(
-                        spacing=12,
+                        spacing=8,
                         controls=[
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=14, color=ft.Colors.GREY_700), self.subtotal_text]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ส่วนลด (Discount):", size=14, color=ft.Colors.GREY_700), self.discount_input]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=14, color=ft.Colors.GREY_700), self.sc_text]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=14, color=ft.Colors.GREY_700), self.vat_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=13, color=ft.Colors.GREY_700), self.subtotal_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=13, color=ft.Colors.GREY_700), self.sc_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=13, color=ft.Colors.GREY_700), self.vat_text]),
                             ft.Divider(height=1, color=ft.Colors.GREY_200),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิ:", size=20, weight=ft.FontWeight.BOLD), self.net_total_text]),
-                            self.payment_dropdown,
-                            ft.Row(
-                                spacing=15,
-                                controls=[
-                                    ft.ElevatedButton("หารจ่าย", icon=ft.Icons.CALL_SPLIT, style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_50, color=ft.Colors.INDIGO_700, padding=15, shape=ft.RoundedRectangleBorder(radius=8)), expand=1, on_click=self._handle_split_bill),
-                                    ft.ElevatedButton("ชำระเงิน", icon=ft.Icons.PAYMENT, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=15, shape=ft.RoundedRectangleBorder(radius=8)), expand=2, on_click=self._handle_checkout)
-                                ]
-                            )
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิ:", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900), self.net_total_text]),
+                            ft.Divider(height=4, color=ft.Colors.TRANSPARENT),
+                            action_section
                         ]
                     )
                 ]
@@ -352,121 +380,154 @@ class PosMainView(ft.View):
         finally:
             db.close()
 
-    def _on_discount_change(self, e):
-        self._calculate_totals()
-
-    def _handle_split_bill(self, e):
+    def _handle_send_to_kitchen(self, e):
         if not self.order_id:
             return
-        
-        persons_input = ft.TextField(label="จำนวนคน (เช่น 2, 3, 4)", value="2", keyboard_type=ft.KeyboardType.NUMBER, width=160)
-        net_text = ft.Text(f"ยอดสุทธิรวมทั้งบิล: {self._cached_net_amount:,.2f} ฿", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900)
-        per_person_text = ft.Text("...", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
-        breakdown_col = ft.Column(spacing=6)
+        db = SessionLocal()
+        try:
+            order = db.query(Order).filter(Order.id == self.order_id).first()
+            if not order or not order.items or len(order.items) == 0:
+                self.page_ref.snack_bar = ft.SnackBar(ft.Text("⚠️ กรุณาเลือกรายการอาหารก่อนส่งเข้าครัว"), bgcolor=ft.Colors.ORANGE_800, open=True)
+                try:
+                    self.page_ref.update()
+                except Exception:
+                    pass
+                return
+            
+            # Show success toast and navigate to tables
+            self.page_ref.snack_bar = ft.SnackBar(
+                ft.Text(f"✅ ส่งรายการอาหาร #{order.order_number} ({order.customer_name}) เข้าครัวและบันทึกโต๊ะเรียบร้อยแล้ว"),
+                bgcolor=ft.Colors.GREEN_700,
+                open=True
+            )
+            # Remove active order session and navigate to tables
+            self.page_ref.session.store.remove("active_order_id")
+            navigate_to(self.page_ref, "/tables")
+        finally:
+            db.close()
 
-        def set_persons(n: int):
-            persons_input.value = str(n)
-            calculate_split(None)
+    def _open_checkout_dialog(self, e):
+        if not self.order_id:
+            return
+        db = SessionLocal()
+        try:
+            order = db.query(Order).filter(Order.id == self.order_id).first()
+            if not order or not order.items or len(order.items) == 0:
+                self.page_ref.snack_bar = ft.SnackBar(ft.Text("⚠️ ไม่สามารถคิดเงินบิลว่างได้ กรุณาเลือกรายการอาหารก่อน"), bgcolor=ft.Colors.ORANGE_800, open=True)
+                try:
+                    self.page_ref.update()
+                except Exception:
+                    pass
+                return
 
-        chips_row = ft.Row([
-            ft.ActionChip(label=ft.Text("2 คน"), on_click=lambda e: set_persons(2)),
-            ft.ActionChip(label=ft.Text("3 คน"), on_click=lambda e: set_persons(3)),
-            ft.ActionChip(label=ft.Text("4 คน"), on_click=lambda e: set_persons(4)),
-            ft.ActionChip(label=ft.Text("5 คน"), on_click=lambda e: set_persons(5)),
-        ], spacing=8)
-        
-        def calculate_split(e_calc):
-            try:
-                raw_p = (persons_input.value or "1").strip()
-                p = int(raw_p) if raw_p else 1
-                if p <= 0:
-                    p = 1
-                net = self._cached_net_amount
-                per_head = net / p
-                per_person_text.value = f"ตกคนละ: {per_head:,.2f} ฿"
+            subtotal_val = float(order.subtotal or 0.0)
+            initial_discount = float(order.discount_amount or 0.0)
+            
+            discount_input = ft.TextField(
+                label="ส่วนลด (บาท)",
+                value=str(int(initial_discount)) if initial_discount > 0 else "0",
+                keyboard_type=ft.KeyboardType.NUMBER,
+                width=160,
+                prefix_icon=ft.Icons.DISCOUNT_OUTLINED
+            )
 
-                breakdown_col.controls.clear()
-                for i in range(1, p + 1):
-                    breakdown_col.controls.append(
-                        ft.Container(
-                            bgcolor=ft.Colors.GREY_50,
-                            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-                            border_radius=6,
-                            content=ft.Row(
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                                controls=[
-                                    ft.Text(f"คนที่ #{i}", weight=ft.FontWeight.W_500, size=13),
-                                    ft.Text(f"{per_head:,.2f} ฿", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_800, size=13),
-                                ]
-                            )
-                        )
+            payment_dropdown = ft.Dropdown(
+                label="ช่องทางชำระเงิน",
+                width=400,
+                value="เงินสด (CASH)",
+                options=[
+                    ft.dropdown.Option("เงินสด (CASH)"),
+                    ft.dropdown.Option("สแกน QR พร้อมเพย์"),
+                    ft.dropdown.Option("บัตรเครดิต/เดบิต")
+                ]
+            )
+
+            sub_after_initial = max(0.0, subtotal_val - initial_discount)
+            initial_sc = round(sub_after_initial * 0.10, 2)
+            initial_vat = round((sub_after_initial + initial_sc) * 0.07, 2)
+            initial_net = round(sub_after_initial + initial_sc + initial_vat, 2)
+
+            sc_modal_text = ft.Text(f"{initial_sc:,.2f} ฿", size=14, color=ft.Colors.GREY_700)
+            vat_modal_text = ft.Text(f"{initial_vat:,.2f} ฿", size=14, color=ft.Colors.GREY_700)
+            net_modal_text = ft.Text(f"{initial_net:,.2f} ฿", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+
+            def recalc_modal(e_change):
+                try:
+                    disc = float(discount_input.value or 0)
+                except ValueError:
+                    disc = 0.0
+                disc = max(0.0, min(disc, subtotal_val))
+                sub_after = max(0.0, subtotal_val - disc)
+                sc = round(sub_after * 0.10, 2)
+                vat = round((sub_after + sc) * 0.07, 2)
+                net = round(sub_after + sc + vat, 2)
+                sc_modal_text.value = f"{sc:,.2f} ฿"
+                vat_modal_text.value = f"{vat:,.2f} ฿"
+                net_modal_text.value = f"{net:,.2f} ฿"
+                try:
+                    checkout_dialog.update()
+                except Exception:
+                    pass
+
+            discount_input.on_change = recalc_modal
+
+            def do_checkout_confirm(e_click):
+                try:
+                    disc_final = float(discount_input.value or 0)
+                except ValueError:
+                    disc_final = 0.0
+                pm_final = payment_dropdown.value or "เงินสด (CASH)"
+                self._close_dialog(checkout_dialog)
+                self._execute_checkout(pm_final, disc_final)
+
+            checkout_dialog = ft.AlertDialog(
+                title=ft.Row([
+                    ft.Icon(ft.Icons.PAYMENT, color=ft.Colors.GREEN_700),
+                    ft.Text(f"เช็คบิลชำระเงิน - {order.customer_name}", weight=ft.FontWeight.BOLD, size=18)
+                ]),
+                content=ft.Container(
+                    width=440,
+                    content=ft.Column(
+                        spacing=12,
+                        tight=True,
+                        controls=[
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=14, color=ft.Colors.GREY_700), ft.Text(f"{subtotal_val:,.2f} ฿", size=14, weight=ft.FontWeight.BOLD)]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ส่วนลด (Discount):", size=14, color=ft.Colors.GREY_700), discount_input]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=14, color=ft.Colors.GREY_700), sc_modal_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=14, color=ft.Colors.GREY_700), vat_modal_text]),
+                            ft.Divider(height=1, color=ft.Colors.GREY_200),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิชำระ:", size=16, weight=ft.FontWeight.BOLD), net_modal_text]),
+                            ft.Divider(height=1, color=ft.Colors.GREY_200),
+                            payment_dropdown
+                        ]
                     )
-                self._update_ui()
-            except Exception:
-                pass
-                
-        persons_input.on_change = calculate_split
-        calculate_split(None)
+                ),
+                actions=[
+                    ft.TextButton("ยกเลิก (Cancel)", on_click=lambda e: self._close_dialog(checkout_dialog)),
+                    ft.ElevatedButton("ยืนยันรับเงิน & พิมพ์ใบเสร็จ", icon=ft.Icons.CHECK_CIRCLE, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=14), on_click=do_checkout_confirm)
+                ],
+                actions_alignment=ft.MainAxisAlignment.END
+            )
 
-        def copy_summary(e_copy):
-            try:
-                p = int(persons_input.value or "1")
-                per_head = self._cached_net_amount / p
-                summary = f"🥩 สรุปยอดหารค่าอาหาร Steakhouse POS\nยอดสุทธิ: {self._cached_net_amount:,.2f} บาท\nจำนวน {p} คน\n➡️ ตกคนละ: {per_head:,.2f} บาท"
-                self.page_ref.clipboard = summary
-                self.page_ref.snack_bar = ft.SnackBar(ft.Text("📋 คัดลอกสรุปยอดหารรายคนแล้ว! นำไปวางใน LINE ได้ทันที"), bgcolor=ft.Colors.GREEN_700, open=True)
-                self.page_ref.update()
-            except Exception:
-                pass
-        
-        dialog = ft.AlertDialog(
-            title=ft.Row([
-                ft.Icon(ft.Icons.CALL_SPLIT, color=ft.Colors.BLUE_900),
-                ft.Text("ระบบหารจ่ายรายคน (Split Bill)", weight=ft.FontWeight.BOLD, size=16)
-            ]),
-            content=ft.Container(
-                width=420,
-                content=ft.Column(
-                    spacing=12,
-                    tight=True,
-                    controls=[
-                        net_text,
-                        chips_row,
-                        ft.Row([persons_input, per_person_text], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        ft.Divider(height=1),
-                        ft.Text("สรุปยอดชำระรายบุคคล:", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
-                        ft.Container(
-                            height=140,
-                            content=ft.ListView([breakdown_col])
-                        )
-                    ]
-                )
-            ),
-            actions=[
-                ft.OutlinedButton("📋 คัดลอกสรุปส่ง LINE", icon=ft.Icons.CONTENT_COPY, on_click=copy_summary),
-                ft.TextButton("ปิด", on_click=lambda e: self._close_dialog(dialog))
-            ]
-        )
-        self._open_dialog(dialog)
+            self._open_dialog(checkout_dialog)
+        finally:
+            db.close()
 
-    def _handle_checkout(self, e):
+    def _execute_checkout(self, payment_method: str, discount_amount: float):
         if not self.order_id:
             return
         db = SessionLocal()
         user_id = self.page_ref.session.store.get("user_id")
         if user_id is None:
             self.page_ref.snack_bar = ft.SnackBar(ft.Text("เกิดข้อผิดพลาด: ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่"), bgcolor=ft.Colors.RED_600, open=True)
-            self.page_ref.update()
+            try:
+                self.page_ref.update()
+            except Exception:
+                pass
             return
         try:
-            try:
-                discount = float(self.discount_input.value or 0)
-            except ValueError:
-                discount = 0.0
-            payment_method = self.payment_dropdown.value
-            
             # Checkout & Deduct Stock
-            order = OrderService.checkout_order(db, self.order_id, payment_method=payment_method, discount_amount=discount, user_id=user_id)
+            order = OrderService.checkout_order(db, self.order_id, payment_method=payment_method, discount_amount=discount_amount, user_id=user_id)
 
             # Build E-Receipt Data
             items_data = []

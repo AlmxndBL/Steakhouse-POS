@@ -15,9 +15,9 @@ class TableMapView(ft.View):
         nav_buttons = [
             ft.ElevatedButton("ผังโต๊ะ", icon=ft.Icons.GRID_VIEW, style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE)),
             ft.ElevatedButton("ออเดอร์ Takeaway", icon=ft.Icons.SHOPPING_BAG, on_click=self._handle_takeaway, style=ft.ButtonStyle(bgcolor=ft.Colors.AMBER_700, color=ft.Colors.WHITE)),
-            ft.ElevatedButton("ครัว (KDS)", icon=ft.Icons.KITCHEN, on_click=lambda e: navigate_to(self.page_ref, "/kds"), style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_700, color=ft.Colors.WHITE)),
         ]
         if user_role in ["OWNER", "MANAGER"]:
+            nav_buttons.append(ft.ElevatedButton("ครัว (KDS)", icon=ft.Icons.KITCHEN, on_click=lambda e: navigate_to(self.page_ref, "/kds"), style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_700, color=ft.Colors.WHITE)))
             nav_buttons.insert(0, ft.ElevatedButton("👑 แดชบอร์ดผู้บริหาร", icon=ft.Icons.DASHBOARD, on_click=lambda e: navigate_to(self.page_ref, "/admin"), style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)))
 
         # App Bar / Header Navigation
