@@ -27,11 +27,11 @@ class ReportsView(ft.View):
                         spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("📊 รายงานยอดขาย & วิเคราะห์การเงิน (Visual Analytics Dashboard)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                            ft.Text("รายงานยอดขาย & วิเคราะห์การเงิน (Visual Analytics Dashboard)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
                     ft.ElevatedButton(
-                        "📥 ส่งออกข้อมูล (Export CSV)",
+                        "ส่งออกข้อมูล (Export CSV)",
                         icon=ft.Icons.DOWNLOAD,
                         style=ft.ButtonStyle(
                             bgcolor=ft.Colors.GREEN_600,
@@ -47,7 +47,7 @@ class ReportsView(ft.View):
 
         # Date Filter Bar
         self.btn_today = ft.ElevatedButton(
-            "🔘 วันนี้ (Today)",
+            "วันนี้ (Today)",
             style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_900, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=8)),
             on_click=lambda e: self._change_period("today")
         )
@@ -61,7 +61,7 @@ class ReportsView(ft.View):
             content=ft.Row(
                 spacing=10,
                 controls=[
-                    ft.Text("📅 เลือกช่วงเวลา:", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
+                    ft.Text("เลือกช่วงเวลา:", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
                     self.btn_today,
                     self.btn_7days,
                     self.btn_month,
@@ -122,7 +122,7 @@ class ReportsView(ft.View):
                                     spacing=8,
                                     controls=[
                                         ft.Icon(ft.Icons.SHOW_CHART, color=ft.Colors.BLUE_800),
-                                        ft.Text("📈 แนวโน้มยอดขาย 7 วันล่าสุด (7-Day Sales Trend)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
+                                        ft.Text("แนวโน้มยอดขาย 7 วันล่าสุด (7-Day Sales Trend)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                                     ]
                                 ),
                                 ft.Text("กราฟแท่งเปรียบเทียบยอดขายรายวัน", size=12, color=ft.Colors.GREY_600)
@@ -154,7 +154,7 @@ class ReportsView(ft.View):
                             spacing=8,
                             controls=[
                                 ft.Icon(ft.Icons.PIE_CHART_OUTLINE, color=ft.Colors.INDIGO_700),
-                                ft.Text("🥧 สัดส่วนยอดขายตามหมวดหมู่อาหาร (Category Share)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
+                                ft.Text("สัดส่วนยอดขายตามหมวดหมู่อาหาร (Category Share)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                             ]
                         ),
                         self.category_bars_col
@@ -179,7 +179,7 @@ class ReportsView(ft.View):
                             spacing=8,
                             controls=[
                                 ft.Icon(ft.Icons.DONUT_LARGE, color=ft.Colors.TEAL_800),
-                                ft.Text("💳 สัดส่วนช่องทางชำระเงิน (Payment Split)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
+                                ft.Text("สัดส่วนช่องทางชำระเงิน (Payment Split)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                             ]
                         ),
                         self.payment_bars_col
@@ -233,7 +233,7 @@ class ReportsView(ft.View):
                                         spacing=8,
                                         controls=[
                                             ft.Icon(ft.Icons.LEADERBOARD, color=ft.Colors.ORANGE_800),
-                                            ft.Text("🥩 5 อันดับเมนูขายดีที่สุด (Top 5 Best Sellers)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
+                                            ft.Text("5 อันดับเมนูขายดีที่สุด (Top 5 Best Sellers)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                                         ]
                                     ),
                                     self.top_sellers_table
@@ -257,7 +257,7 @@ class ReportsView(ft.View):
                                         spacing=8,
                                         controls=[
                                             ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET, color=ft.Colors.PURPLE_800),
-                                            ft.Text("📉 สรุปต้นทุนวัตถุดิบ & ของเสีย (Cost Analysis)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
+                                            ft.Text("สรุปต้นทุนวัตถุดิบ & ของเสีย (Cost Analysis)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                                         ]
                                     ),
                                     self.cost_breakdown_col
@@ -299,7 +299,7 @@ class ReportsView(ft.View):
                             spacing=8,
                             controls=[
                                 ft.Icon(ft.Icons.RECEIPT_LONG, color=ft.Colors.BLUE_900),
-                                ft.Text("🧾 ประวัติรายการขายทั้งหมด (Transaction History)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
+                                ft.Text("ประวัติรายการขายทั้งหมด (Transaction History)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
                             ]
                         ),
                         ft.Container(content=ft.ListView([self.orders_table], expand=False))
@@ -384,7 +384,7 @@ class ReportsView(ft.View):
 
             # 1. Update KPI Text
             self.kpi_net_sales.value = f"{report['total_net']:,.2f} ฿"
-            self.kpi_payment_split.value = f"💵 เงินสด: {report['cash_sales']:,.2f} ฿\n📱 QR: {report['qr_sales']:,.2f} ฿"
+            self.kpi_payment_split.value = f"เงินสด: {report['cash_sales']:,.2f} ฿\nQR: {report['qr_sales']:,.2f} ฿"
             self.kpi_bill_stats.value = f"{report['bill_count']} บิล (เฉลี่ย {report['avg_bill']:,.2f} ฿)"
             self.kpi_food_cost.value = f"{report['food_cost_pct']:.1f}% (กำไร {report['gross_profit']:,.2f} ฿)"
 
@@ -515,11 +515,11 @@ class ReportsView(ft.View):
 
             # 6. Update Cost Breakdown Column
             self.cost_breakdown_col.controls = [
-                self._build_cost_item("🥩 ต้นทุนวัตถุดิบ (COGS):", f"{report['total_food_cost']:,.2f} ฿", ft.Colors.BLUE_GREY_900),
-                self._build_cost_item("🗑️ มูลค่าของเสีย (Wastage):", f"{report['total_wastage_cost']:,.2f} ฿", ft.Colors.RED_700),
+                self._build_cost_item("ต้นทุนวัตถุดิบ (COGS):", f"{report['total_food_cost']:,.2f} ฿", ft.Colors.BLUE_GREY_900),
+                self._build_cost_item("มูลค่าของเสีย (Wastage):", f"{report['total_wastage_cost']:,.2f} ฿", ft.Colors.RED_700),
                 ft.Divider(height=1, color=ft.Colors.GREY_300),
-                self._build_cost_item("💰 กำไรขั้นต้น (Gross Profit):", f"{report['gross_profit']:,.2f} ฿", ft.Colors.GREEN_700, is_bold=True),
-                self._build_cost_item("📊 อัตรากำไร (Margin %):", f"{report['gross_margin_pct']:.1f} %", ft.Colors.INDIGO_700, is_bold=True),
+                self._build_cost_item("กำไรขั้นต้น (Gross Profit):", f"{report['gross_profit']:,.2f} ฿", ft.Colors.GREEN_700, is_bold=True),
+                self._build_cost_item("อัตรากำไร (Margin %):", f"{report['gross_margin_pct']:.1f} %", ft.Colors.INDIGO_700, is_bold=True),
             ]
 
             # 7. Update Orders History Table
@@ -622,7 +622,7 @@ class ReportsView(ft.View):
             download_url = f"/{filename}"
 
             btn_copy = ft.OutlinedButton(
-                "📋 คัดลอกข้อมูล (Copy)",
+                "คัดลอกข้อมูล (Copy)",
                 icon=ft.Icons.CONTENT_COPY
             )
 
@@ -631,7 +631,7 @@ class ReportsView(ft.View):
                     self.page_ref.clipboard = csv_content
                 except Exception:
                     pass
-                btn_copy.text = "✅ คัดลอกสำเร็จแล้ว!"
+                btn_copy.text = "คัดลอกสำเร็จแล้ว!"
                 btn_copy.icon = ft.Icons.CHECK
                 try:
                     btn_copy.update()
@@ -640,7 +640,7 @@ class ReportsView(ft.View):
 
                 try:
                     self.page_ref.snack_bar = ft.SnackBar(
-                        content=ft.Text("📋 คัดลอกข้อมูล CSV สำเร็จ! นำไปวางใน Excel หรือ Google Sheets ได้ทันที", color=ft.Colors.WHITE),
+                        content=ft.Text("คัดลอกข้อมูล CSV สำเร็จ! นำไปวางใน Excel หรือ Google Sheets ได้ทันที", color=ft.Colors.WHITE),
                         bgcolor=ft.Colors.GREEN_700,
                         open=True
                     )
@@ -694,7 +694,7 @@ class ReportsView(ft.View):
                 actions=[
                     btn_copy,
                     ft.ElevatedButton(
-                        "📥 ดาวน์โหลดไฟล์ (Download)",
+                        "ดาวน์โหลดไฟล์ (Download)",
                         icon=ft.Icons.DOWNLOAD,
                         style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
                         on_click=trigger_download

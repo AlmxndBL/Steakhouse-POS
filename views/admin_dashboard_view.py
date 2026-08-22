@@ -47,7 +47,7 @@ class AdminDashboardView(ft.View):
                                 )
                             ),
                             ft.ElevatedButton(
-                                "🚪 ออกจากระบบ",
+                                "ออกจากระบบ",
                                 style=ft.ButtonStyle(
                                     bgcolor=ft.Colors.RED_700,
                                     color=ft.Colors.WHITE,
@@ -123,7 +123,7 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
-                        title="👥 จัดการพนักงาน",
+                        title="จัดการพนักงาน",
                         desc="เพิ่มพนักงานใหม่ กำหนดรหัสผ่าน และสิทธิ์เข้าใช้งาน",
                         icon=ft.Icons.BADGE,
                         icon_color=ft.Colors.INDIGO_700,
@@ -134,7 +134,7 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
-                        title="🥩 จัดการเมนูอาหาร",
+                        title="จัดการเมนูอาหาร",
                         desc="เพิ่มเมนูอาหาร ปรับราคาขาย เปิด/ปิดการขาย และหมวดหมู่",
                         icon=ft.Icons.RESTAURANT_MENU,
                         icon_color=ft.Colors.ORANGE_800,
@@ -145,7 +145,7 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
-                        title="🪑 จัดการผังโต๊ะอาหาร",
+                        title="จัดการผังโต๊ะอาหาร",
                         desc="เพิ่ม/ลบโต๊ะ กำหนดจำนวนที่นั่ง และจัดโซนร้านอาหาร",
                         icon=ft.Icons.TABLE_RESTAURANT,
                         icon_color=ft.Colors.BLUE_GREY_800,
@@ -156,7 +156,7 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
-                        title="📦 คลังวัตถุดิบ & ตัดสต๊อก",
+                        title="คลังวัตถุดิบ & ตัดสต๊อก",
                         desc="รับของเข้าคลัง, ตรวจนับสต๊อกจริง, ตัดของเสีย และสูตร BOM",
                         icon=ft.Icons.INVENTORY_2,
                         icon_color=ft.Colors.GREEN_800,
@@ -167,7 +167,7 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
-                        title="📊 รายงานยอดขายและการเงิน",
+                        title="รายงานยอดขายและการเงิน",
                         desc="สรุปยอดขาย ประวัติการสั่งซื้อ และคำนวณ Food Cost %",
                         icon=ft.Icons.BAR_CHART,
                         icon_color=ft.Colors.BLUE_800,
@@ -178,7 +178,7 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 4},
                     content=self._build_action_card(
-                        title="📜 บันทึกประวัติระบบ (Audit Logs)",
+                        title="บันทึกประวัติระบบ (Audit Logs)",
                         desc="ตรวจสอบประวัติการทำงานของพนักงาน ใครทำอะไร เมื่อไหร่",
                         icon=ft.Icons.SECURITY,
                         icon_color=ft.Colors.DEEP_PURPLE_800,
@@ -189,7 +189,7 @@ class AdminDashboardView(ft.View):
                 ft.Container(
                     col={"sm": 12, "md": 12},
                     content=self._build_action_card(
-                        title="🍽️ สลับเข้าสู่หน้าร้าน (POS Table Map)",
+                        title="สลับเข้าสู่หน้าร้าน (POS Table Map)",
                         desc="เปิดดูผังโต๊ะหน้าร้าน รับออเดอร์ Takeaway และคิดเงินลูกค้า",
                         icon=ft.Icons.POINT_OF_SALE,
                         icon_color=ft.Colors.TEAL_800,

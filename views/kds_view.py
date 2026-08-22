@@ -178,7 +178,7 @@ class KdsView(ft.View):
                     ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
-                            ft.Text(f"🕒 {time_str}" if time_str else "", size=11, color=ft.Colors.GREY_500),
+                            ft.Text(f"{time_str}" if time_str else "", size=11, color=ft.Colors.GREY_500),
                             btn
                         ]
                     )

@@ -81,7 +81,7 @@ class StaffView(ft.View):
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                 controls=[
                                     ft.Text("รายชื่อพนักงานทั้งหมดในระบบ", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                    ft.Text("คลิกไอคอน ✏️ เพื่อแก้ไขข้อมูล หรือ 🔑 เพื่อรีเซ็ตรหัสผ่าน", size=13, color=ft.Colors.GREY_600)
+                                    ft.Text("คลิกไอคอนดินสอ เพื่อแก้ไขข้อมูล หรือไอคอนกุญแจ เพื่อรีเซ็ตรหัสผ่าน", size=13, color=ft.Colors.GREY_600)
                                 ]
                             ),
                             ft.Container(expand=True, content=ft.ListView([self.staff_table], expand=True))

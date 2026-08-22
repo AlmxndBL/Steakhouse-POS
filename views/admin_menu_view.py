@@ -26,7 +26,7 @@ class AdminMenuView(ft.View):
                         spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("🥩 จัดการเมนูอาหาร, ราคา & ต้นทุน BOM (Menu & Cost Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                            ft.Text("จัดการเมนูอาหาร, ราคา & ต้นทุน BOM (Menu & Cost Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
                     ft.Row(
@@ -87,7 +87,7 @@ class AdminMenuView(ft.View):
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                 controls=[
                                     ft.Text("รายการอาหารและโครงสร้างต้นทุนวัตถุดิบทั้งหมด", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                    ft.Text("💡 คลิกไอคอน ✏️ เพื่อแก้ไขราคา/ชื่อ หรือ 👁️ เพื่อเปิด/ปิดการขาย", size=13, color=ft.Colors.GREY_600)
+                                    ft.Text("คลิกไอคอนดินสอ เพื่อแก้ไขราคา/ชื่อ หรือไอคอนดวงตา เพื่อเปิด/ปิดการขาย", size=13, color=ft.Colors.GREY_600)
                                 ]
                             ),
                             ft.Container(expand=True, content=ft.ListView([self.menu_table], expand=True))

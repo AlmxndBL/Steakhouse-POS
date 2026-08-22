@@ -27,7 +27,7 @@ class AdminTableView(ft.View):
                         spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("🪑 จัดการผังโต๊ะอาหาร & โซน (Table Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                            ft.Text("จัดการผังโต๊ะอาหาร & โซน (Table Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
                     ft.ElevatedButton(
@@ -74,7 +74,7 @@ class AdminTableView(ft.View):
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                 controls=[
                                     ft.Text("ผังโต๊ะทั้งหมดในร้านอาหาร", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                    ft.Text("คลิกไอคอน ✏️ เพื่อแก้ไขจำนวนที่นั่ง/โซน หรือ 🗑️ เพื่อลบโต๊ะ", size=13, color=ft.Colors.GREY_600)
+                                    ft.Text("คลิกไอคอนดินสอ เพื่อแก้ไขจำนวนที่นั่ง/โซน หรือไอคอนถังขยะ เพื่อลบโต๊ะ", size=13, color=ft.Colors.GREY_600)
                                 ]
                             ),
                             ft.Container(expand=True, content=ft.ListView([self.table_table], expand=True))

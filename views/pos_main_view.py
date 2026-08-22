@@ -83,7 +83,7 @@ class PosMainView(ft.View):
 
         # Action Buttons based on Role (Option A: Send to Kitchen vs Checkout)
         btn_send_kitchen = ft.ElevatedButton(
-            "👨‍🍳 ส่งเข้าครัว / บันทึกโต๊ะ",
+            "ส่งเข้าครัว / บันทึกโต๊ะ",
             icon=ft.Icons.KITCHEN,
             style=ft.ButtonStyle(
                 bgcolor=ft.Colors.ORANGE_800,
@@ -97,7 +97,7 @@ class PosMainView(ft.View):
         )
 
         btn_checkout = ft.ElevatedButton(
-            "💵 เช็คบิล / ชำระเงิน",
+            "เช็คบิล / ชำระเงิน",
             icon=ft.Icons.PAYMENT,
             style=ft.ButtonStyle(
                 bgcolor=ft.Colors.GREEN_600,
@@ -116,7 +116,7 @@ class PosMainView(ft.View):
                 controls=[
                     btn_send_kitchen,
                     ft.Container(
-                        content=ft.Text("🍽️ พนักงานเสิร์ฟ: สั่งอาหารเข้าครัว (การคิดเงินดำเนินการโดยแคชเชียร์)", size=11, color=ft.Colors.BLUE_GREY_600, text_align=ft.TextAlign.CENTER),
+                        content=ft.Text("พนักงานเสิร์ฟ: สั่งอาหารเข้าครัว (การคิดเงินดำเนินการโดยแคชเชียร์)", size=11, color=ft.Colors.BLUE_GREY_600, text_align=ft.TextAlign.CENTER),
                         padding=ft.Padding.symmetric(vertical=2)
                     )
                 ]
@@ -388,7 +388,7 @@ class PosMainView(ft.View):
         try:
             order = db.query(Order).filter(Order.id == self.order_id).first()
             if not order or not order.items or len(order.items) == 0:
-                self.page_ref.snack_bar = ft.SnackBar(ft.Text("⚠️ กรุณาเลือกรายการอาหารก่อนส่งเข้าครัว"), bgcolor=ft.Colors.ORANGE_800, open=True)
+                self.page_ref.snack_bar = ft.SnackBar(ft.Text("กรุณาเลือกรายการอาหารก่อนส่งเข้าครัว"), bgcolor=ft.Colors.ORANGE_800, open=True)
                 try:
                     self.page_ref.update()
                 except Exception:
@@ -404,7 +404,7 @@ class PosMainView(ft.View):
 
             # Show success toast and navigate to tables
             self.page_ref.snack_bar = ft.SnackBar(
-                ft.Text(f"✅ ส่งรายการอาหาร #{order.order_number} ({order.customer_name}) เข้าครัวและบันทึกโต๊ะเรียบร้อยแล้ว"),
+                ft.Text(f"ส่งรายการอาหาร #{order.order_number} ({order.customer_name}) เข้าครัวและบันทึกโต๊ะเรียบร้อยแล้ว"),
                 bgcolor=ft.Colors.GREEN_700,
                 open=True
             )
@@ -421,7 +421,7 @@ class PosMainView(ft.View):
         try:
             order = db.query(Order).filter(Order.id == self.order_id).first()
             if not order or not order.items or len(order.items) == 0:
-                self.page_ref.snack_bar = ft.SnackBar(ft.Text("⚠️ ไม่สามารถคิดเงินบิลว่างได้ กรุณาเลือกรายการอาหารก่อน"), bgcolor=ft.Colors.ORANGE_800, open=True)
+                self.page_ref.snack_bar = ft.SnackBar(ft.Text("ไม่สามารถคิดเงินบิลว่างได้ กรุณาเลือกรายการอาหารก่อน"), bgcolor=ft.Colors.ORANGE_800, open=True)
                 try:
                     self.page_ref.update()
                 except Exception:

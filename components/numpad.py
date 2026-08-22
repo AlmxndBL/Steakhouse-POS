@@ -28,7 +28,7 @@ class PinNumpad(ft.Container):
             ["1", "2", "3"],
             ["4", "5", "6"],
             ["7", "8", "9"],
-            ["C", "0", "⌫"]
+            ["C", "0", "DEL"]
         ]
 
         grid_controls = []
@@ -41,9 +41,9 @@ class PinNumpad(ft.Container):
                     height=75,
                     style=ft.ButtonStyle(
                         shape=ft.RoundedRectangleBorder(radius=16),
-                        color=ft.Colors.WHITE if btn_text not in ["C", "⌫"] else ft.Colors.BLUE_GREY_900,
-                        bgcolor=ft.Colors.BLUE_600 if btn_text not in ["C", "⌫"] else ft.Colors.BLUE_GREY_200,
-                        text_style=ft.TextStyle(size=26, weight=ft.FontWeight.BOLD)
+                        color=ft.Colors.WHITE if btn_text not in ["C", "DEL"] else ft.Colors.BLUE_GREY_900,
+                        bgcolor=ft.Colors.BLUE_600 if btn_text not in ["C", "DEL"] else ft.Colors.BLUE_GREY_200,
+                        text_style=ft.TextStyle(size=22 if btn_text == "DEL" else 26, weight=ft.FontWeight.BOLD)
                     ),
                     on_click=lambda e, val=btn_text: self._on_key_click(val)
                 )
@@ -66,7 +66,7 @@ class PinNumpad(ft.Container):
         if val == "C":
             self.pin = ""
             self.error_text.value = ""
-        elif val == "⌫":
+        elif val == "DEL":
             self.pin = self.pin[:-1]
             self.error_text.value = ""
         elif len(self.pin) < 6 and val.isdigit():

@@ -50,11 +50,11 @@ class LoginView(ft.View):
 
         # Quick Demo Login Chips
         demo_accounts = [
-            ("👑 เจ้าของร้าน", "owner", "admin1234", ft.Colors.INDIGO_700),
-            ("👔 ผู้จัดการ", "manager", "mgr1234", ft.Colors.BLUE_700),
-            ("💵 แคชเชียร์", "cashier", "cash1234", ft.Colors.GREEN_700),
-            ("🍽️ พนักงานเสิร์ฟ", "waiter", "waiter1234", ft.Colors.TEAL_700),
-            ("👨‍🍳 ครัว (KDS)", "kitchen", "cook1234", ft.Colors.AMBER_800),
+            ("เจ้าของร้าน", "owner", "admin1234", ft.Colors.INDIGO_700),
+            ("ผู้จัดการ", "manager", "mgr1234", ft.Colors.BLUE_700),
+            ("แคชเชียร์", "cashier", "cash1234", ft.Colors.GREEN_700),
+            ("พนักงานเสิร์ฟ", "waiter", "waiter1234", ft.Colors.TEAL_700),
+            ("ครัว (KDS)", "kitchen", "cook1234", ft.Colors.AMBER_800),
         ]
 
         demo_buttons = []
@@ -94,7 +94,7 @@ class LoginView(ft.View):
                         ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
                         self.btn_login,
                         ft.Divider(height=15, color=ft.Colors.GREY_200),
-                        ft.Text("🚀 ทดสอบเข้าสู่ระบบด่วน (Quick Demo)", size=12, color=ft.Colors.GREY_600, weight=ft.FontWeight.W_500),
+                        ft.Text("ทดสอบเข้าสู่ระบบด่วน (Quick Demo)", size=12, color=ft.Colors.GREY_600, weight=ft.FontWeight.W_500),
                         ft.Row(
                             alignment=ft.MainAxisAlignment.CENTER,
                             wrap=True,
@@ -169,7 +169,7 @@ class LoginView(ft.View):
                 else:
                     navigate_to(self.page_ref, "/tables")
             else:
-                self.error_text.value = "❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"
+                self.error_text.value = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"
                 self.error_text.visible = True
                 self._update_ui()
         finally:

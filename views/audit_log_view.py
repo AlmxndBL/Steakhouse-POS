@@ -27,11 +27,11 @@ class AuditLogView(ft.View):
                         spacing=15,
                         controls=[
                             ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("📜 บันทึกประวัติการใช้งานระบบ (Audit Logs & Security Trail)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                            ft.Text("บันทึกประวัติการใช้งานระบบ (Audit Logs & Security Trail)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                         ]
                     ),
                     ft.ElevatedButton(
-                        "🔄 รีเฟรชข้อมูล",
+                        "รีเฟรชข้อมูล",
                         icon=ft.Icons.REFRESH,
                         style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_800, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=8)),
                         on_click=lambda e: self._load_logs()
@@ -47,11 +47,11 @@ class AuditLogView(ft.View):
             value="ALL",
             options=[
                 ft.dropdown.Option("ALL", "ทั้งหมด (All Actions)"),
-                ft.dropdown.Option("STOCK", "📦 คลังและรับวัตถุดิบ (Stock)"),
-                ft.dropdown.Option("WASTAGE", "🗑️ ของเสีย (Wastage)"),
-                ft.dropdown.Option("ADJUSTMENT", "⚖️ นับสต๊อกจริง (Adjustment)"),
-                ft.dropdown.Option("AUTH", "🔑 เข้าสู่ระบบ (Auth)"),
-                ft.dropdown.Option("STAFF", "👥 จัดการพนักงาน (Staff)"),
+                ft.dropdown.Option("STOCK", "คลังและรับวัตถุดิบ (Stock)"),
+                ft.dropdown.Option("WASTAGE", "ของเสีย (Wastage)"),
+                ft.dropdown.Option("ADJUSTMENT", "นับสต๊อกจริง (Adjustment)"),
+                ft.dropdown.Option("AUTH", "เข้าสู่ระบบ (Auth)"),
+                ft.dropdown.Option("STAFF", "จัดการพนักงาน (Staff)"),
             ],
             on_select=lambda e: self._load_logs()
         )

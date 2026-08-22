@@ -77,7 +77,7 @@ class PrinterService:
         # Payment info
         lines.append(f"วิธีชำระเงิน: {order.payment_method or 'เงินสด (CASH)'}")
         lines.append("")
-        lines.append("🙏 ขอบคุณที่มาอุดหนุน โอกาสหน้าเชิญใหม่ครับ 🙏".center(paper_width))
+        lines.append("ขอบคุณที่มาอุดหนุน โอกาสหน้าเชิญใหม่ครับ".center(paper_width))
         lines.append("".center(paper_width))
         
         return "\n".join(lines)
@@ -95,7 +95,7 @@ class PrinterService:
         
         lines = []
         lines.append(divider)
-        lines.append(f"👨‍🍳 ใบสั่งเข้าครัว (KITCHEN ORDER)".center(paper_width))
+        lines.append("ใบสั่งเข้าครัว (KITCHEN ORDER)".center(paper_width))
         lines.append(divider)
         
         created_str = order.created_at.strftime("%H:%M:%S") if order.created_at else datetime.now().strftime("%H:%M:%S")
