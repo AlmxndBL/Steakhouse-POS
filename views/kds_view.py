@@ -1,59 +1,40 @@
-import flet as ft
+import json
 import threading
+import flet as ft
 from database.connection import SessionLocal
 from database.models import OrderItem, OrderItemStatus
+from components.pos_header import create_pos_header
+from components.theme import ThemeColors, create_card, create_badge, create_button
 from utils.navigation import navigate_to
 
 class KdsView(ft.View):
     def __init__(self, page: ft.Page):
         self.page_ref = page
-        
         user_role = page.session.store.get("user_role") or "KITCHEN"
-        
-        left_controls = []
-        if user_role in ["OWNER", "MANAGER"]:
-            left_controls.append(
-                ft.IconButton(
-                    ft.Icons.ARROW_BACK,
-                    icon_color=ft.Colors.WHITE,
-                    tooltip="กลับหน้าผังโต๊ะ",
-                    on_click=lambda e: navigate_to(self.page_ref, "/tables")
-                )
+
+        header_actions = [
+            ft.IconButton(
+                ft.Icons.REFRESH_ROUNDED,
+                icon_color=ThemeColors.TEXT_WHITE,
+                tooltip="รีเฟรชออเดอร์",
+                on_click=lambda e: self._load_data()
             )
-        else:
-            left_controls.append(ft.Icon(ft.Icons.KITCHEN, color=ft.Colors.WHITE, size=28))
-            
-        left_controls.append(
-            ft.Column(
-                spacing=2,
-                controls=[
-                    ft.Text("Kitchen Display System (KDS)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                    ft.Text("ระบบจัดการคิวอาหารในครัว (สำหรับเชฟและพนักงานครัว)", size=12, color=ft.Colors.ORANGE_200)
-                ]
-            )
+        ]
+
+        back_route = "/tables" if user_role in ["OWNER", "MANAGER"] else None
+
+        pos_header = create_pos_header(
+            page=page,
+            title="จอคิวครัว (Kitchen Display System - KDS)",
+            subtitle="ระบบจัดการคิวอาหารสดแบบ Real-time สำหรับเชฟและพนักงานครัว",
+            icon=ft.Icons.KITCHEN_ROUNDED,
+            back_route=back_route,
+            action_controls=header_actions
         )
 
-        nav_header = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=25, vertical=15),
-            bgcolor=ft.Colors.ORANGE_900,
-            content=ft.Row(
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                controls=[
-                    ft.Row(spacing=15, controls=left_controls),
-                    ft.Row(
-                        spacing=10,
-                        controls=[
-                            ft.IconButton(ft.Icons.REFRESH, tooltip="รีเฟรชออเดอร์", icon_color=ft.Colors.WHITE, on_click=lambda e: self._load_data()),
-                            ft.IconButton(ft.Icons.LOGOUT, tooltip="ออกจากระบบ", icon_color=ft.Colors.RED_300, on_click=self._handle_logout)
-                        ]
-                    )
-                ]
-            )
-        )
-        
-        self.pending_col = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
-        self.cooking_col = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
-        
+        self.pending_col = ft.Column(spacing=12, scroll=ft.ScrollMode.AUTO, expand=True)
+        self.cooking_col = ft.Column(spacing=12, scroll=ft.ScrollMode.AUTO, expand=True)
+
         board = ft.Row(
             expand=True,
             spacing=20,
@@ -63,40 +44,67 @@ class KdsView(ft.View):
                 # Pending Column
                 ft.Container(
                     expand=True,
-                    bgcolor=ft.Colors.GREY_100,
+                    bgcolor=ThemeColors.SURFACE_WHITE,
                     border_radius=12,
-                    padding=15,
+                    border=ft.Border.all(1, ThemeColors.BORDER_LIGHT),
+                    padding=16,
                     content=ft.Column([
-                        ft.Text("รอดำเนินการ (PENDING)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_700),
-                        ft.Divider(),
+                        ft.Row(
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            controls=[
+                                ft.Row([
+                                    ft.Container(width=10, height=10, bgcolor=ThemeColors.CRIMSON, border_radius=5),
+                                    ft.Text("รอดำเนินการ (PENDING)", size=15, weight=ft.FontWeight.BOLD, color=ThemeColors.CRIMSON_DARK)
+                                ]),
+                                ft.Text("ออเดอร์ใหม่", size=12, color=ThemeColors.TEXT_MUTED)
+                            ]
+                        ),
+                        ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
                         self.pending_col
-                    ])
+                    ], expand=True, spacing=10)
                 ),
                 # Cooking Column
                 ft.Container(
                     expand=True,
-                    bgcolor=ft.Colors.GREY_100,
+                    bgcolor=ThemeColors.SURFACE_WHITE,
                     border_radius=12,
-                    padding=15,
+                    border=ft.Border.all(1, ThemeColors.BORDER_LIGHT),
+                    padding=16,
                     content=ft.Column([
-                        ft.Text("กำลังทำ (COOKING)", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.ORANGE_700),
-                        ft.Divider(),
+                        ft.Row(
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            controls=[
+                                ft.Row([
+                                    ft.Container(width=10, height=10, bgcolor=ThemeColors.AMBER_DARK, border_radius=5),
+                                    ft.Text("กำลังปรุง (COOKING)", size=15, weight=ft.FontWeight.BOLD, color=ThemeColors.AMBER_DARK)
+                                ]),
+                                ft.Text("อยู่ระหว่างจัดเตรียม", size=12, color=ThemeColors.TEXT_MUTED)
+                            ]
+                        ),
+                        ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
                         self.cooking_col
-                    ])
+                    ], expand=True, spacing=10)
                 )
             ]
         )
-        
+
         super().__init__(
             route="/kds",
             controls=[
-                ft.Column(expand=True, spacing=0, controls=[nav_header, ft.Container(expand=True, padding=20, content=board)])
+                ft.Column(
+                    expand=True,
+                    spacing=0,
+                    controls=[
+                        pos_header,
+                        ft.Container(expand=True, padding=20, bgcolor=ThemeColors.BG_PAGE, content=board)
+                    ]
+                )
             ],
             padding=0,
             spacing=0
         )
-        
-        # Subscribe to Real-time PubSub Channel
+
+        # Real-time PubSub Channel
         if hasattr(self.page_ref, "pubsub") and self.page_ref.pubsub:
             try:
                 self.page_ref.pubsub.subscribe_topic("kds_orders_channel", self._handle_pubsub_order)
@@ -104,7 +112,7 @@ class KdsView(ft.View):
                 pass
 
         self._auto_refresh()
-        
+
     def _handle_pubsub_order(self, topic, message):
         try:
             self._load_data()
@@ -125,67 +133,84 @@ class KdsView(ft.View):
         try:
             pending_items = db.query(OrderItem).filter(OrderItem.item_status == OrderItemStatus.PENDING).all()
             cooking_items = db.query(OrderItem).filter(OrderItem.item_status == OrderItemStatus.COOKING).all()
-            
+
             self.pending_col.controls.clear()
             for item in pending_items:
                 self.pending_col.controls.append(self._create_card(item))
-                
+
             self.cooking_col.controls.clear()
             for item in cooking_items:
                 self.cooking_col.controls.append(self._create_card(item))
-                
+
             try:
                 self.update()
-            except:
+            except Exception:
                 pass
         finally:
             db.close()
-            
+
     def _create_card(self, item: OrderItem):
         opt_str = ""
         if item.options_json:
-            import json
             try:
                 opts = json.loads(item.options_json)
-                opt_str = f" ({opts.get('doneness', '')}, {opts.get('sauce', '')})"
-            except:
+                opt_str = f" • {opts.get('doneness', '')}, {opts.get('sauce', '')}"
+            except Exception:
                 pass
-                
+
         table_name = item.order.customer_name if item.order else "Unknown"
         time_str = item.order.created_at.strftime("%H:%M น.") if (item.order and item.order.created_at) else ""
-        
-        # Action Button
+
         if item.item_status == OrderItemStatus.PENDING:
-            btn = ft.ElevatedButton("เริ่มทำ (Cook)", icon=ft.Icons.PLAY_ARROW, style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_500, color=ft.Colors.WHITE), on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.COOKING))
+            btn = create_button(
+                "เริ่มปรุง (Cook)",
+                icon=ft.Icons.PLAY_ARROW_ROUNDED,
+                bg_color=ThemeColors.AMBER_DARK,
+                height=36,
+                on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.COOKING)
+            )
+            border_c = ThemeColors.CRIMSON
         else:
-            btn = ft.ElevatedButton("เสร็จแล้ว (Served)", icon=ft.Icons.CHECK, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE), on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.SERVED))
-            
-        return ft.Card(
-            elevation=2,
-            content=ft.Container(
-                padding=14,
-                content=ft.Column([
-                    ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[
-                        ft.Text(f"{item.menu_item.name} x{item.quantity}", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                        ft.Container(
-                            content=ft.Text(table_name, size=13, color=ft.Colors.BLUE_900, weight=ft.FontWeight.BOLD),
-                            bgcolor=ft.Colors.BLUE_50,
-                            padding=ft.Padding.symmetric(horizontal=8, vertical=4),
-                            border_radius=6
-                        )
-                    ]),
-                    ft.Text(f"ตัวเลือก: {opt_str}" if opt_str else "ตัวเลือก: ไม่มี", size=12, color=ft.Colors.GREY_700),
+            btn = create_button(
+                "เสร็จพร้อมเสิร์ฟ (Served)",
+                icon=ft.Icons.CHECK_ROUNDED,
+                bg_color=ThemeColors.EMERALD,
+                height=36,
+                on_click=lambda e, i=item.id: self._update_status(i, OrderItemStatus.SERVED)
+            )
+            border_c = ThemeColors.AMBER_DARK
+
+        card_content = ft.Container(
+            padding=14,
+            bgcolor=ThemeColors.SURFACE_WHITE,
+            border=ft.Border.all(1.5, border_c),
+            border_radius=10,
+            content=ft.Column(
+                spacing=10,
+                controls=[
                     ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
-                            ft.Text(f"{time_str}" if time_str else "", size=11, color=ft.Colors.GREY_500),
+                            ft.Text(f"{item.menu_item.name} x{item.quantity}", size=15, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN),
+                            create_badge(table_name, f"{ThemeColors.INDIGO}18", ThemeColors.INDIGO)
+                        ]
+                    ),
+                    ft.Text(f"ตัวเลือก:{opt_str}" if opt_str else "ตัวเลือก: สแตนดาร์ด", size=12, color=ThemeColors.AMBER_DARK if opt_str else ThemeColors.TEXT_MUTED, weight=ft.FontWeight.W_500),
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        controls=[
+                            ft.Row([
+                                ft.Icon(ft.Icons.ACCESS_TIME_ROUNDED, size=14, color=ThemeColors.TEXT_MUTED),
+                                ft.Text(time_str, size=11, color=ThemeColors.TEXT_MUTED)
+                            ], spacing=4),
                             btn
                         ]
                     )
-                ], spacing=8)
+                ]
             )
         )
-        
+        return card_content
+
     def _update_status(self, item_id: int, new_status):
         db = SessionLocal()
         try:
@@ -196,8 +221,3 @@ class KdsView(ft.View):
             self._load_data()
         finally:
             db.close()
-
-    def _handle_logout(self, e):
-        self.page_ref.session.store.clear()
-        navigate_to(self.page_ref, "/login")
-

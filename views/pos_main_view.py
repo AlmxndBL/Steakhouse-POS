@@ -5,8 +5,11 @@ from database.models import Order, Category, MenuItem, ModifierGroup, OrderStatu
 from services.order_service import OrderService
 from services.menu_service import MenuService
 from components.ereceipt_modal import EReceiptModal
+from components.pos_header import create_pos_header
+from components.theme import ThemeColors, create_card, create_badge, create_button
 from utils.navigation import navigate_to
 from utils.validators import Validator
+from utils.dialogs import open_dialog, close_dialog
 
 class PosMainView(ft.View):
     def __init__(self, page: ft.Page):
@@ -17,108 +20,79 @@ class PosMainView(ft.View):
 
         self.selected_category_id = None
         self._cached_net_amount = 0.0
-        self.cart_items_list = ft.ListView(expand=True, spacing=10, padding=10)
-        self.subtotal_text = ft.Text("0.00 THB", size=14, weight=ft.FontWeight.W_500, color=ft.Colors.GREY_800)
-        self.sc_text = ft.Text("0.00 THB", size=13, color=ft.Colors.GREY_600)
-        self.vat_text = ft.Text("0.00 THB", size=13, color=ft.Colors.GREY_600)
-        self.net_total_text = ft.Text("0.00 THB", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
-        self.order_title_text = ft.Text("รายการออเดอร์", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
+        self.cart_items_list = ft.ListView(expand=True, spacing=8, padding=ft.Padding.symmetric(horizontal=4, vertical=6))
+        self.subtotal_text = ft.Text("0.00 ฿", size=13, weight=ft.FontWeight.W_500, color=ThemeColors.TEXT_MUTED)
+        self.sc_text = ft.Text("0.00 ฿", size=13, color=ThemeColors.TEXT_MUTED)
+        self.vat_text = ft.Text("0.00 ฿", size=13, color=ThemeColors.TEXT_MUTED)
+        self.net_total_text = ft.Text("0.00 ฿", size=22, weight=ft.FontWeight.BOLD, color=ThemeColors.EMERALD)
+        self.order_title_text = ft.Text("รายการสั่งอาหาร", size=16, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN)
 
-        # Premium Theme Colors
-        primary_color = ft.Colors.BLUE_800
-        bg_color = ft.Colors.BLUE_GREY_50
-        card_bg = ft.Colors.WHITE
-
-        # Header Navigation
-        nav_header = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=30, vertical=15),
-            bgcolor=primary_color,
-            shadow=ft.BoxShadow(spread_radius=1, blur_radius=5, color=ft.Colors.BLACK12),
-            content=ft.Row(
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                controls=[
-                    ft.Row(
-                        spacing=15,
-                        controls=[
-                            ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/tables")),
-                            ft.Text("รับออเดอร์ & คิดเงิน (POS Checkout)", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE)
-                        ]
-                    ),
-                    ft.Container(
-                        padding=ft.Padding.symmetric(horizontal=15, vertical=8),
-                        bgcolor=ft.Colors.BLUE_900,
-                        border_radius=20,
-                        content=ft.Text(f"พนักงาน: {user_name}", size=14, color=ft.Colors.WHITE, weight=ft.FontWeight.W_500)
-                    )
-                ]
-            )
+        pos_header = create_pos_header(
+            page=page,
+            title="จุดรับออเดอร์ & คิดเงิน (POS Checkout)",
+            subtitle="เลือกเมนูอาหาร เพิ่มตัวเลือก และจัดการการชำระเงิน",
+            icon=ft.Icons.POINT_OF_SALE_ROUNDED,
+            back_route="/tables"
         )
 
         # Categories & Menu Grid
-        self.category_row = ft.Row(scroll=ft.ScrollMode.AUTO, spacing=10)
+        self.category_row = ft.Row(scroll=ft.ScrollMode.AUTO, spacing=8)
         self.menu_grid = ft.GridView(
             expand=True,
             runs_count=3,
             max_extent=220,
-            child_aspect_ratio=1.0,
-            spacing=20,
-            run_spacing=20,
-            padding=20
+            child_aspect_ratio=1.05,
+            spacing=16,
+            run_spacing=16,
+            padding=16
         )
 
-        # Left Column: Menu Items
+        # Left Layout (Catalog)
         left_layout = ft.Column(
             col={"sm": 12, "md": 7, "lg": 8},
             spacing=0,
             controls=[
                 ft.Container(
                     content=self.category_row, 
-                    padding=ft.Padding.symmetric(horizontal=20, vertical=15),
-                    bgcolor=card_bg,
-                    border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.GREY_200))
+                    padding=ft.Padding.symmetric(horizontal=16, vertical=12),
+                    bgcolor=ThemeColors.SURFACE_WHITE,
+                    border=ft.Border(bottom=ft.BorderSide(1, ThemeColors.BORDER_LIGHT))
                 ),
-                ft.Container(expand=True, content=self.menu_grid, bgcolor=bg_color)
+                ft.Container(
+                    expand=True, 
+                    content=self.menu_grid, 
+                    bgcolor=ThemeColors.BG_PAGE
+                )
             ]
         )
 
-        # Action Buttons based on Role (Option A: Send to Kitchen vs Checkout)
-        btn_send_kitchen = ft.ElevatedButton(
+        # Action Buttons
+        btn_send_kitchen = create_button(
             "ส่งเข้าครัว / บันทึกโต๊ะ",
-            icon=ft.Icons.KITCHEN,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.ORANGE_800,
-                color=ft.Colors.WHITE,
-                padding=ft.Padding.symmetric(vertical=15, horizontal=12),
-                shape=ft.RoundedRectangleBorder(radius=10)
-            ),
-            expand=True if self.user_role != "WAITER" else False,
-            width=300 if self.user_role == "WAITER" else None,
-            on_click=self._handle_send_to_kitchen
+            icon=ft.Icons.KITCHEN_ROUNDED,
+            bg_color=ThemeColors.AMBER_DARK,
+            on_click=self._handle_send_to_kitchen,
+            height=46
         )
+        if self.user_role != "WAITER":
+            btn_send_kitchen.expand = True
 
-        btn_checkout = ft.ElevatedButton(
+        btn_checkout = create_button(
             "เช็คบิล / ชำระเงิน",
-            icon=ft.Icons.PAYMENT,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.GREEN_600,
-                color=ft.Colors.WHITE,
-                padding=ft.Padding.symmetric(vertical=15, horizontal=12),
-                shape=ft.RoundedRectangleBorder(radius=10)
-            ),
-            expand=True,
-            on_click=self._open_checkout_dialog
+            icon=ft.Icons.PAYMENTS_ROUNDED,
+            bg_color=ThemeColors.EMERALD,
+            on_click=self._open_checkout_dialog,
+            height=46
         )
+        btn_checkout.expand = True
 
         if self.user_role == "WAITER":
             action_section = ft.Column(
-                spacing=8,
+                spacing=6,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 controls=[
                     btn_send_kitchen,
-                    ft.Container(
-                        content=ft.Text("พนักงานเสิร์ฟ: สั่งอาหารเข้าครัว (การคิดเงินดำเนินการโดยแคชเชียร์)", size=11, color=ft.Colors.BLUE_GREY_600, text_align=ft.TextAlign.CENTER),
-                        padding=ft.Padding.symmetric(vertical=2)
-                    )
+                    ft.Text("พนักงานเสิร์ฟ: สั่งอาหารเข้าครัว (การคิดเงินดำเนินการโดยแคชเชียร์)", size=11, color=ThemeColors.TEXT_MUTED, text_align=ft.TextAlign.CENTER)
                 ]
             )
         else:
@@ -127,36 +101,36 @@ class PosMainView(ft.View):
                 controls=[btn_send_kitchen, btn_checkout]
             )
 
-        # Right Column: Cart & Payment Sidebar
+        # Right Layout (Ticket & Cart)
         right_layout = ft.Container(
             col={"sm": 12, "md": 5, "lg": 4},
-            bgcolor=card_bg,
-            border=ft.Border(left=ft.BorderSide(1, ft.Colors.GREY_200)),
-            shadow=ft.BoxShadow(spread_radius=1, blur_radius=10, color=ft.Colors.BLACK12),
-            padding=25,
+            bgcolor=ThemeColors.SURFACE_WHITE,
+            border=ft.Border(left=ft.BorderSide(1, ThemeColors.BORDER_LIGHT)),
+            shadow=ft.BoxShadow(spread_radius=0, blur_radius=10, color="#00000010", offset=ft.Offset(-2, 0)),
+            padding=20,
             content=ft.Column(
                 expand=True,
-                spacing=16,
+                spacing=12,
                 controls=[
                     ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
                             self.order_title_text,
-                            ft.Icon(ft.Icons.SHOPPING_CART, color=ft.Colors.BLUE_GREY_400)
+                            ft.Icon(ft.Icons.SHOPPING_BAG_ROUNDED, color=ThemeColors.AMBER_DARK, size=22)
                         ]
                     ),
-                    ft.Divider(height=1, color=ft.Colors.GREY_200),
+                    ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
                     ft.Container(expand=True, content=self.cart_items_list),
-                    ft.Divider(height=1, color=ft.Colors.GREY_200),
+                    ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
                     ft.Column(
-                        spacing=8,
+                        spacing=6,
                         controls=[
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=13, color=ft.Colors.GREY_700), self.subtotal_text]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=13, color=ft.Colors.GREY_700), self.sc_text]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=13, color=ft.Colors.GREY_700), self.vat_text]),
-                            ft.Divider(height=1, color=ft.Colors.GREY_200),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิ:", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900), self.net_total_text]),
-                            ft.Divider(height=4, color=ft.Colors.TRANSPARENT),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=12, color=ThemeColors.TEXT_MUTED), self.subtotal_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=12, color=ThemeColors.TEXT_MUTED), self.sc_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=12, color=ThemeColors.TEXT_MUTED), self.vat_text]),
+                            ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิ (Total):", size=16, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN), self.net_total_text]),
+                            ft.Container(height=4),
                             action_section
                         ]
                     )
@@ -176,7 +150,7 @@ class PosMainView(ft.View):
                 ft.Column(
                     expand=True,
                     spacing=0,
-                    controls=[nav_header, main_body]
+                    controls=[pos_header, main_body]
                 )
             ],
             padding=0,
@@ -186,21 +160,38 @@ class PosMainView(ft.View):
         self._load_categories_and_menu()
         self._load_cart()
 
+    def _get_cat_btn_style(self, is_active: bool):
+        if is_active:
+            return ft.ButtonStyle(
+                bgcolor=ThemeColors.BG_DARK,
+                color=ThemeColors.TEXT_WHITE,
+                shape=ft.RoundedRectangleBorder(radius=20),
+                elevation=0,
+                padding=ft.Padding.symmetric(horizontal=16, vertical=8)
+            )
+        return ft.ButtonStyle(
+            bgcolor=ThemeColors.SURFACE_HOVER,
+            color=ThemeColors.TEXT_MUTED,
+            shape=ft.RoundedRectangleBorder(radius=20),
+            side=ft.BorderSide(1, ThemeColors.BORDER_LIGHT),
+            elevation=0,
+            padding=ft.Padding.symmetric(horizontal=16, vertical=8)
+        )
+
     def _load_categories_and_menu(self):
         db = SessionLocal()
         try:
             categories = MenuService.get_categories(db)
             self.category_row.controls.clear()
             
-            # All category button
             btn_all = ft.ElevatedButton("ทั้งหมด", 
-                                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20)),
+                                        style=self._get_cat_btn_style(self.selected_category_id is None),
                                         on_click=lambda e: self._filter_menu(None))
             self.category_row.controls.append(btn_all)
 
             for cat in categories:
                 btn = ft.ElevatedButton(cat.name, 
-                                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20)),
+                                        style=self._get_cat_btn_style(self.selected_category_id == cat.id),
                                         on_click=lambda e, cid=cat.id: self._filter_menu(cid))
                 self.category_row.controls.append(btn)
 
@@ -216,30 +207,33 @@ class PosMainView(ft.View):
 
             self.menu_grid.controls.clear()
             for item in items:
-                card = ft.Card(
-                    elevation=2,
-                    shadow_color=ft.Colors.BLACK12,
-                    shape=ft.RoundedRectangleBorder(radius=16),
-                    content=ft.Container(
-                        padding=15,
-                        ink=True,
-                        border_radius=16,
-                        on_click=lambda e, m=item: self._on_menu_item_click(m),
-                        content=ft.Column(
-                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                            controls=[
-                                ft.Text(item.name, size=15, weight=ft.FontWeight.W_600, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, color=ft.Colors.BLUE_GREY_900),
-                                ft.Text(f"{item.price:,.2f} ฿", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_600),
-                                ft.Container(
-                                    bgcolor=ft.Colors.BLUE_50,
-                                    padding=ft.Padding.symmetric(vertical=8),
-                                    border_radius=8,
-                                    content=ft.Row([ft.Icon(ft.Icons.ADD, size=16, color=ft.Colors.BLUE_700), ft.Text("เพิ่มลงตะกร้า", size=13, weight=ft.FontWeight.W_500, color=ft.Colors.BLUE_700)], alignment=ft.MainAxisAlignment.CENTER),
-                                    alignment=ft.Alignment.CENTER
-                                )
-                            ]
-                        )
-                    )
+                card = create_card(
+                    ft.Column(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        controls=[
+                            ft.Row(
+                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                controls=[
+                                    create_badge(item.code, f"{ThemeColors.INDIGO}18", ThemeColors.INDIGO),
+                                    ft.Text(f"{float(item.price):,.0f} ฿", size=16, weight=ft.FontWeight.BOLD, color=ThemeColors.EMERALD)
+                                ]
+                            ),
+                            ft.Text(item.name, size=14, weight=ft.FontWeight.BOLD, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, color=ThemeColors.TEXT_MAIN),
+                            ft.Container(
+                                bgcolor=f"{ThemeColors.SAPPHIRE}15",
+                                padding=ft.Padding.symmetric(vertical=6),
+                                border_radius=6,
+                                alignment=ft.Alignment(0, 0),
+                                content=ft.Row([
+                                    ft.Icon(ft.Icons.ADD_ROUNDED, size=16, color=ThemeColors.SAPPHIRE),
+                                    ft.Text("เลือกรายการ", size=12, weight=ft.FontWeight.BOLD, color=ThemeColors.SAPPHIRE)
+                                ], alignment=ft.MainAxisAlignment.CENTER, spacing=4)
+                            )
+                        ]
+                    ),
+                    padding=14,
+                    on_click=lambda e, m=item: self._on_menu_item_click(m),
+                    ink=True
                 )
                 self.menu_grid.controls.append(card)
             try:
@@ -250,7 +244,6 @@ class PosMainView(ft.View):
             db.close()
 
     def _on_menu_item_click(self, item: MenuItem):
-        # If item is steak, pop up options dialog
         db = SessionLocal()
         try:
             if "สเต๊ก" in item.name:
@@ -263,32 +256,29 @@ class PosMainView(ft.View):
                     elif "ซอส" in g.name:
                         sauce_options = [opt.name for opt in g.options]
 
-                sel_doneness = ft.Dropdown(label="ระดับความสุก", value=doneness_options[1] if len(doneness_options)>1 else "Medium Rare", options=[ft.dropdown.Option(d) for d in doneness_options])
-                sel_sauce = ft.Dropdown(label="เลือกซอส", value=sauce_options[0] if len(sauce_options)>0 else "ซอสพริกไทยดำ", options=[ft.dropdown.Option(s) for s in sauce_options])
+                sel_doneness = ft.Dropdown(label="ระดับความสุกของเนื้อ", value=doneness_options[1] if len(doneness_options)>1 else "Medium Rare", options=[ft.dropdown.Option(d) for d in doneness_options], width=360)
+                sel_sauce = ft.Dropdown(label="ซอสราดสเต๊ก", value=sauce_options[0] if len(sauce_options)>0 else "ซอสพริกไทยดำ", options=[ft.dropdown.Option(s) for s in sauce_options], width=360)
 
                 def add_with_options(e):
                     options_json = json.dumps({"doneness": sel_doneness.value, "sauce": sel_sauce.value}, ensure_ascii=False)
-                    dialog.open = False
-                    try:
-                        self.page_ref.update()
-                    except Exception:
-                        pass
+                    self._close_dialog(dialog)
                     self._add_to_cart(item.id, options_json=options_json)
 
                 dialog = ft.AlertDialog(
-                    title=ft.Text(f"ตัวเลือก: {item.name}"),
-                    content=ft.Column([sel_doneness, sel_sauce], height=160),
-                    actions=[ft.ElevatedButton("ยืนยันเพิ่มรายการ", on_click=add_with_options)],
-                    actions_alignment=ft.MainAxisAlignment.END
+                    title=ft.Row([
+                        ft.Icon(ft.Icons.RESTAURANT_MENU_ROUNDED, color=ThemeColors.AMBER_DARK),
+                        ft.Text(f"ตัวเลือกสเต๊ก: {item.name}", weight=ft.FontWeight.BOLD, size=16)
+                    ]),
+                    content=ft.Container(
+                        width=380,
+                        content=ft.Column([sel_doneness, sel_sauce], tight=True, spacing=12)
+                    ),
+                    actions=[
+                        ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
+                        create_button("ยืนยันเพิ่มรายการ", bg_color=ThemeColors.EMERALD, on_click=add_with_options)
+                    ]
                 )
-                try:
-                    self.page_ref.overlay.append(dialog)
-                    dialog.open = True
-                    self.page_ref.update()
-                except Exception as e:
-                    import traceback
-                    traceback.print_exc()
-                    print(f"Failed to open options dialog: {e}")
+                self._open_dialog(dialog)
             else:
                 self._add_to_cart(item.id)
         finally:
@@ -313,7 +303,7 @@ class PosMainView(ft.View):
             if not order:
                 return
             
-            self.order_title_text.value = f"ออเดอร์ #{order.order_number} ({order.customer_name})"
+            self.order_title_text.value = f"บิล #{order.order_number} ({order.customer_name})"
             self.cart_items_list.controls.clear()
 
             for item in order.items:
@@ -321,31 +311,34 @@ class PosMainView(ft.View):
                 if item.options_json:
                     try:
                         opts = json.loads(item.options_json)
-                        opt_str = f" ({opts.get('doneness', '')}, {opts.get('sauce', '')})"
+                        opt_str = f" • {opts.get('doneness', '')}, {opts.get('sauce', '')}"
                     except:
                         pass
 
                 row = ft.Container(
-                    padding=8,
-                    bgcolor=ft.Colors.GREY_50,
+                    padding=10,
+                    bgcolor=ThemeColors.SURFACE_HOVER,
+                    border=ft.Border.all(1, ThemeColors.BORDER_LIGHT),
                     border_radius=8,
                     content=ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
                             ft.Column(
                                 expand=True,
+                                spacing=2,
                                 controls=[
-                                    ft.Text(f"{item.menu_item.name}{opt_str}", size=13, weight=ft.FontWeight.BOLD),
-                                    ft.Text(f"{item.price_per_unit:,.2f} x {item.quantity} = {item.price_per_unit * item.quantity:,.2f} ฿", size=12, color=ft.Colors.GREY_700)
+                                    ft.Text(item.menu_item.name, size=13, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN),
+                                    ft.Text(opt_str, size=11, color=ThemeColors.AMBER_DARK) if opt_str else ft.Container(),
+                                    ft.Text(f"{float(item.price_per_unit):,.2f} ฿", size=12, color=ThemeColors.TEXT_MUTED)
                                 ]
                             ),
                             ft.Row(
                                 spacing=0,
                                 controls=[
-                                    ft.IconButton(ft.Icons.REMOVE, icon_size=16, icon_color=ft.Colors.BLUE_GREY_700, on_click=lambda e, iid=item.id: self._update_item_qty(iid, -1)),
-                                    ft.Text(str(item.quantity), size=14, weight=ft.FontWeight.BOLD),
-                                    ft.IconButton(ft.Icons.ADD, icon_size=16, icon_color=ft.Colors.BLUE_GREY_700, on_click=lambda e, iid=item.id: self._update_item_qty(iid, 1)),
-                                    ft.IconButton(ft.Icons.DELETE_OUTLINED, icon_color=ft.Colors.RED_400, on_click=lambda e, iid=item.id: self._remove_item(iid))
+                                    ft.IconButton(ft.Icons.REMOVE_ROUNDED, icon_size=16, icon_color=ThemeColors.TEXT_MAIN, on_click=lambda e, iid=item.id: self._update_item_qty(iid, -1)),
+                                    ft.Text(str(item.quantity), size=14, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN),
+                                    ft.IconButton(ft.Icons.ADD_ROUNDED, icon_size=16, icon_color=ThemeColors.TEXT_MAIN, on_click=lambda e, iid=item.id: self._update_item_qty(iid, 1)),
+                                    ft.IconButton(ft.Icons.DELETE_OUTLINE_ROUNDED, icon_size=18, icon_color=ThemeColors.CRIMSON, on_click=lambda e, iid=item.id: self._remove_item(iid))
                                 ]
                             )
                         ]
@@ -353,11 +346,11 @@ class PosMainView(ft.View):
                 )
                 self.cart_items_list.controls.append(row)
 
-            self.subtotal_text.value = f"{order.subtotal:,.2f} THB"
-            self.sc_text.value = f"{getattr(order, 'service_charge_amount', 0.0):,.2f} THB"
-            self.vat_text.value = f"{order.vat_amount:,.2f} THB"
-            self.net_total_text.value = f"{order.net_amount:,.2f} THB"
-            self._cached_net_amount = float(order.net_amount)
+            self.subtotal_text.value = f"{float(order.subtotal or 0.0):,.2f} ฿"
+            self.sc_text.value = f"{float(getattr(order, 'service_charge_amount', 0.0) or 0.0):,.2f} ฿"
+            self.vat_text.value = f"{float(order.vat_amount or 0.0):,.2f} ฿"
+            self.net_total_text.value = f"{float(order.net_amount or 0.0):,.2f} ฿"
+            self._cached_net_amount = float(order.net_amount or 0.0)
             try:
                 self.update()
             except Exception:
@@ -388,27 +381,24 @@ class PosMainView(ft.View):
         try:
             order = db.query(Order).filter(Order.id == self.order_id).first()
             if not order or not order.items or len(order.items) == 0:
-                self.page_ref.snack_bar = ft.SnackBar(ft.Text("กรุณาเลือกรายการอาหารก่อนส่งเข้าครัว"), bgcolor=ft.Colors.ORANGE_800, open=True)
+                self.page_ref.snack_bar = ft.SnackBar(ft.Text("กรุณาเลือกรายการอาหารก่อนส่งเข้าครัว"), bgcolor=ThemeColors.CRIMSON, open=True)
                 try:
                     self.page_ref.update()
                 except Exception:
                     pass
                 return
             
-            # Publish real-time notification to Kitchen Display
             try:
                 if hasattr(self.page_ref, "pubsub") and self.page_ref.pubsub:
                     self.page_ref.pubsub.send_all_on_topic("kds_orders_channel", {"event": "NEW_ORDER", "order": order.order_number})
             except Exception:
                 pass
 
-            # Show success toast and navigate to tables
             self.page_ref.snack_bar = ft.SnackBar(
-                ft.Text(f"ส่งรายการอาหาร #{order.order_number} ({order.customer_name}) เข้าครัวและบันทึกโต๊ะเรียบร้อยแล้ว"),
-                bgcolor=ft.Colors.GREEN_700,
+                ft.Text(f"ส่งรายการอาหาร #{order.order_number} ({order.customer_name}) เข้าครัวเรียบร้อยแล้ว"),
+                bgcolor=ThemeColors.EMERALD,
                 open=True
             )
-            # Remove active order session and navigate to tables
             self.page_ref.session.store.remove("active_order_id")
             navigate_to(self.page_ref, "/tables")
         finally:
@@ -421,7 +411,7 @@ class PosMainView(ft.View):
         try:
             order = db.query(Order).filter(Order.id == self.order_id).first()
             if not order or not order.items or len(order.items) == 0:
-                self.page_ref.snack_bar = ft.SnackBar(ft.Text("ไม่สามารถคิดเงินบิลว่างได้ กรุณาเลือกรายการอาหารก่อน"), bgcolor=ft.Colors.ORANGE_800, open=True)
+                self.page_ref.snack_bar = ft.SnackBar(ft.Text("ไม่สามารถคิดเงินบิลว่างได้ กรุณาเลือกรายการอาหารก่อน"), bgcolor=ThemeColors.CRIMSON, open=True)
                 try:
                     self.page_ref.update()
                 except Exception:
@@ -455,9 +445,9 @@ class PosMainView(ft.View):
             initial_vat = round((sub_after_initial + initial_sc) * 0.07, 2)
             initial_net = round(sub_after_initial + initial_sc + initial_vat, 2)
 
-            sc_modal_text = ft.Text(f"{initial_sc:,.2f} ฿", size=14, color=ft.Colors.GREY_700)
-            vat_modal_text = ft.Text(f"{initial_vat:,.2f} ฿", size=14, color=ft.Colors.GREY_700)
-            net_modal_text = ft.Text(f"{initial_net:,.2f} ฿", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+            sc_modal_text = ft.Text(f"{initial_sc:,.2f} ฿", size=13, color=ThemeColors.TEXT_MUTED)
+            vat_modal_text = ft.Text(f"{initial_vat:,.2f} ฿", size=13, color=ThemeColors.TEXT_MUTED)
+            net_modal_text = ft.Text(f"{initial_net:,.2f} ฿", size=22, weight=ft.FontWeight.BOLD, color=ThemeColors.EMERALD)
 
             def recalc_modal(e_change):
                 d_res = Validator.validate_discount(discount_input.value, subtotal=subtotal_val)
@@ -499,33 +489,31 @@ class PosMainView(ft.View):
 
             checkout_dialog = ft.AlertDialog(
                 title=ft.Row([
-                    ft.Icon(ft.Icons.PAYMENT, color=ft.Colors.GREEN_700),
-                    ft.Text(f"เช็คบิลชำระเงิน - {order.customer_name}", weight=ft.FontWeight.BOLD, size=18)
+                    ft.Icon(ft.Icons.PAYMENTS_ROUNDED, color=ThemeColors.EMERALD),
+                    ft.Text(f"เช็คบิลชำระเงิน - {order.customer_name}", weight=ft.FontWeight.BOLD, size=16)
                 ]),
                 content=ft.Container(
-                    width=440,
+                    width=420,
                     content=ft.Column(
                         spacing=12,
                         tight=True,
                         controls=[
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=14, color=ft.Colors.GREY_700), ft.Text(f"{subtotal_val:,.2f} ฿", size=14, weight=ft.FontWeight.BOLD)]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ส่วนลด (Discount):", size=14, color=ft.Colors.GREY_700), discount_input]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=14, color=ft.Colors.GREY_700), sc_modal_text]),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=14, color=ft.Colors.GREY_700), vat_modal_text]),
-                            ft.Divider(height=1, color=ft.Colors.GREY_200),
-                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิชำระ:", size=16, weight=ft.FontWeight.BOLD), net_modal_text]),
-                            ft.Divider(height=1, color=ft.Colors.GREY_200),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ราคารวม (Subtotal):", size=13, color=ThemeColors.TEXT_MUTED), ft.Text(f"{subtotal_val:,.2f} ฿", size=13, weight=ft.FontWeight.BOLD)]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ส่วนลด (Discount):", size=13, color=ThemeColors.TEXT_MUTED), discount_input]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("Service Charge (10%):", size=13, color=ThemeColors.TEXT_MUTED), sc_modal_text]),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("VAT (7%):", size=13, color=ThemeColors.TEXT_MUTED), vat_modal_text]),
+                            ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
+                            ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("ยอดสุทธิชำระ:", size=15, weight=ft.FontWeight.BOLD), net_modal_text]),
+                            ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
                             payment_dropdown
                         ]
                     )
                 ),
                 actions=[
-                    ft.TextButton("ยกเลิก (Cancel)", on_click=lambda e: self._close_dialog(checkout_dialog)),
-                    ft.ElevatedButton("ยืนยันรับเงิน & พิมพ์ใบเสร็จ", icon=ft.Icons.CHECK_CIRCLE, style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=14), on_click=do_checkout_confirm)
-                ],
-                actions_alignment=ft.MainAxisAlignment.END
+                    ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(checkout_dialog)),
+                    create_button("ยืนยันรับเงิน & ออกใบเสร็จ", icon=ft.Icons.CHECK_CIRCLE_ROUNDED, bg_color=ThemeColors.EMERALD, on_click=do_checkout_confirm)
+                ]
             )
-
             self._open_dialog(checkout_dialog)
         finally:
             db.close()
@@ -536,17 +524,10 @@ class PosMainView(ft.View):
         db = SessionLocal()
         user_id = self.page_ref.session.store.get("user_id")
         if user_id is None:
-            self.page_ref.snack_bar = ft.SnackBar(ft.Text("เกิดข้อผิดพลาด: ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่"), bgcolor=ft.Colors.RED_600, open=True)
-            try:
-                self.page_ref.update()
-            except Exception:
-                pass
             return
         try:
-            # Checkout & Deduct Stock
             order = OrderService.checkout_order(db, self.order_id, payment_method=payment_method, discount_amount=discount_amount, user_id=user_id)
 
-            # Build E-Receipt Data
             items_data = []
             for item in order.items:
                 opt_str = ""
@@ -575,26 +556,20 @@ class PosMainView(ft.View):
                 "payment_method": payment_method
             }
 
-            # Show E-Receipt Popup Modal
             modal = EReceiptModal(order_data=receipt_payload, page=self.page_ref)
             
             def close_and_redirect(e):
                 self._close_dialog(modal)
-                # Clear active order and navigate to tables
                 self.page_ref.session.store.remove("active_order_id")
-                from utils.navigation import navigate_to
                 navigate_to(self.page_ref, "/tables")
 
-            # Override the modal's close button to redirect
             if hasattr(modal, "actions") and modal.actions:
                 modal.actions[0].on_click = close_and_redirect
 
             self._open_dialog(modal)
 
         except Exception as err:
-            import traceback
-            traceback.print_exc()
-            self.page_ref.snack_bar = ft.SnackBar(ft.Text(f"เกิดข้อผิดพลาดในการคิดเงิน: {err}"), bgcolor=ft.Colors.RED_600, open=True)
+            self.page_ref.snack_bar = ft.SnackBar(ft.Text(f"เกิดข้อผิดพลาดในการคิดเงิน: {err}"), bgcolor=ThemeColors.CRIMSON, open=True)
             try:
                 self.page_ref.update()
             except Exception:
@@ -603,37 +578,18 @@ class PosMainView(ft.View):
             db.close()
 
     def _open_dialog(self, dialog: ft.AlertDialog):
-        try:
-            if hasattr(self.page_ref, "show_dialog"):
-                self.page_ref.show_dialog(dialog)
-            elif hasattr(self.page_ref, "open"):
-                self.page_ref.open(dialog)
-            else:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
-        except Exception:
-            try:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
-            except Exception:
-                pass
+        open_dialog(self.page_ref, dialog)
 
     def _close_dialog(self, dialog: ft.AlertDialog = None):
-        try:
-            if hasattr(self.page_ref, "pop_dialog"):
-                self.page_ref.pop_dialog()
-            elif hasattr(self.page_ref, "close"):
-                self.page_ref.close(dialog)
-            elif dialog is not None:
-                dialog.open = False
-                self.page_ref.update()
-        except Exception:
-            if dialog is not None:
-                dialog.open = False
-                try:
-                    self.page_ref.update()
-                except Exception:
-                    pass
+        close_dialog(self.page_ref, dialog)
+        self._update_ui()
 
+    def _update_ui(self):
+        try:
+            self.update()
+        except Exception:
+            pass
+        try:
+            self.page_ref.update()
+        except Exception:
+            pass

@@ -38,8 +38,5 @@ class EReceiptModal(ft.AlertDialog):
         )
 
     def _close_modal(self, e):
-        self.open = False
-        try:
-            self.page_ref.update()
-        except Exception:
-            pass
+        from utils.dialogs import close_dialog
+        close_dialog(self.page_ref, self)

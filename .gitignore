@@ -69,3 +69,5 @@ node_modules/
 dist/
 build/
 .cache/
+exports/*.csv
+!exports/.gitkeep

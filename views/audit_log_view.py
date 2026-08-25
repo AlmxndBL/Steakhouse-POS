@@ -3,47 +3,18 @@ import flet as ft
 from datetime import datetime
 from database.connection import SessionLocal
 from database.models import AuditLog, User
-from utils.navigation import navigate_to
+from components.theme import ThemeColors, create_card, create_badge, create_button
+from components.admin_shell import AdminShell
+from utils.dialogs import open_dialog, close_dialog
 
 class AuditLogView(ft.View):
     def __init__(self, page: ft.Page):
         self.page_ref = page
-        user_name = page.session.store.get("user_name") or "ผู้ดูแลระบบ"
 
-        # Theme Colors
-        primary_color = ft.Colors.BLUE_900
-        bg_color = ft.Colors.BLUE_GREY_50
-        card_bg = ft.Colors.WHITE
-
-        # Header Navigation
-        nav_header = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=30, vertical=18),
-            bgcolor=primary_color,
-            shadow=ft.BoxShadow(spread_radius=1, blur_radius=5, color=ft.Colors.BLACK12),
-            content=ft.Row(
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                controls=[
-                    ft.Row(
-                        spacing=15,
-                        controls=[
-                            ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("บันทึกประวัติการใช้งานระบบ (Audit Logs & Security Trail)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
-                        ]
-                    ),
-                    ft.ElevatedButton(
-                        "รีเฟรชข้อมูล",
-                        icon=ft.Icons.REFRESH,
-                        style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_800, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=8)),
-                        on_click=lambda e: self._load_logs()
-                    )
-                ]
-            )
-        )
-
-        # Filter Bar
+        # Filter Bar Controls
         self.filter_dropdown = ft.Dropdown(
-            label="กรองประเภทการกระทำ (Action Filter)",
-            width=260,
+            label="กรองประเภทการกระทำ",
+            width=240,
             value="ALL",
             options=[
                 ft.dropdown.Option("ALL", "ทั้งหมด (All Actions)"),
@@ -58,28 +29,29 @@ class AuditLogView(ft.View):
 
         self.search_input = ft.TextField(
             label="ค้นหาชื่อผู้ใช้ / รายละเอียด...",
-            width=320,
-            prefix_icon=ft.Icons.SEARCH,
+            width=300,
+            prefix_icon=ft.Icons.SEARCH_ROUNDED,
             on_change=lambda e: self._load_logs()
         )
 
-        filter_bar = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=30, vertical=12),
-            bgcolor=ft.Colors.WHITE,
-            content=ft.Row(
-                spacing=15,
-                controls=[
-                    self.filter_dropdown,
-                    self.search_input,
-                ]
-            )
+        filter_row = ft.Row(
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            controls=[
+                ft.Row([self.filter_dropdown, self.search_input], spacing=12),
+                create_button(
+                    "รีเฟรชประวัติ",
+                    icon=ft.Icons.REFRESH_ROUNDED,
+                    bg_color=ThemeColors.BG_DARK,
+                    on_click=lambda e: self._load_logs()
+                )
+            ]
         )
 
         # Audit Logs Table
         self.logs_table = ft.DataTable(
-            heading_row_color=ft.Colors.GREY_100,
-            heading_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-            data_row_color={"hovered": ft.Colors.BLUE_50},
+            heading_row_color=ThemeColors.SURFACE_HOVER,
+            heading_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN, size=13),
+            data_row_color={"hovered": f"{ThemeColors.SAPPHIRE}11"},
             border_radius=8,
             columns=[
                 ft.DataColumn(ft.Text("วันที่ / เวลา")),
@@ -92,44 +64,30 @@ class AuditLogView(ft.View):
             rows=[]
         )
 
-        content_body = ft.Container(
-            expand=True,
-            padding=ft.Padding.only(left=30, right=30, bottom=30, top=10),
-            content=ft.Card(
-                elevation=2,
-                shape=ft.RoundedRectangleBorder(radius=12),
-                content=ft.Container(
-                    bgcolor=card_bg,
-                    padding=20,
-                    expand=True,
-                    content=ft.Column(
-                        expand=True,
-                        spacing=12,
-                        controls=[
-                            ft.Row(
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                                controls=[
-                                    ft.Text("ประวัติการกระทำทั้งหมดในระบบ (บันทึกอัตโนมัติ 100%)", size=15, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                    ft.Text("แสดง 50 รายการล่าสุด", size=12, color=ft.Colors.GREY_600)
-                                ]
-                            ),
-                            ft.Container(expand=True, content=ft.ListView([self.logs_table], expand=True))
-                        ]
-                    )
-                )
-            )
+        table_card = create_card(
+            ft.Column(
+                expand=True,
+                spacing=16,
+                controls=[
+                    filter_row,
+                    ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
+                    ft.Container(expand=True, content=ft.ListView([self.logs_table], expand=True))
+                ]
+            ),
+            padding=20
+        )
+
+        shell = AdminShell(
+            page=page,
+            current_route="/admin/audit",
+            title="บันทึกประวัติระบบ (Audit Logs & Security Trail)",
+            subtitle="ตรวจสอบประวัติการทำรายการย้อนหลัง กิจกรรมคลังสินค้า และการเข้าสู่ระบบเพื่อความโปร่งใส",
+            content_control=table_card
         )
 
         super().__init__(
             route="/admin/audit",
-            controls=[
-                ft.Column(
-                    expand=True,
-                    spacing=0,
-                    controls=[nav_header, filter_bar, content_body]
-                )
-            ],
-            bgcolor=bg_color,
+            controls=[shell],
             padding=0,
             spacing=0
         )
@@ -141,179 +99,135 @@ class AuditLogView(ft.View):
         try:
             query = db.query(AuditLog).order_by(AuditLog.timestamp.desc())
             
-            filter_val = self.filter_dropdown.value
-            if filter_val and filter_val != "ALL":
-                query = query.filter(AuditLog.action.contains(filter_val))
+            selected_action = self.filter_dropdown.value
+            if selected_action and selected_action != "ALL":
+                query = query.filter(AuditLog.action.ilike(f"%{selected_action}%"))
 
-            logs = query.limit(50).all()
-            
             search_text = (self.search_input.value or "").strip().lower()
-            
+            logs = query.limit(100).all()
+
             self.logs_table.rows.clear()
             for log in logs:
-                u_name = log.user.name if log.user else f"User #{log.user_id}"
-                u_role = f"({log.user.role.value})" if log.user and hasattr(log.user.role, "value") else ""
-                user_display = f"{u_name} {u_role}"
+                user_display = log.user.name if log.user else ("System" if not log.user_id else f"User #{log.user_id}")
                 dt_str = log.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log.timestamp else "-"
-                action_badge = self._get_action_badge(log.action)
-                target_str = f"{log.target_type or '-'} #{log.target_id or ''}".strip()
                 
-                details_preview = "-"
-                raw_json = log.details_json or "{}"
-                try:
-                    parsed = json.loads(raw_json) if isinstance(raw_json, str) else raw_json
-                    if isinstance(parsed, dict):
-                        details_preview = ", ".join([f"{k}: {v}" for k, v in list(parsed.items())[:2]])
-                    else:
-                        details_preview = str(parsed)[:40]
-                except Exception:
-                    details_preview = str(raw_json)[:40]
+                details_val = log.details_json or ""
+                details_short = (details_val[:45] + "...") if len(details_val) > 45 else (details_val or "-")
+                target_display = f"{log.target_type} #{log.target_id}" if (log.target_type and log.target_id) else (log.target_type or "-")
 
-                # Filter by search text
                 if search_text:
-                    match = (
-                        search_text in user_display.lower() or
-                        search_text in log.action.lower() or
-                        search_text in details_preview.lower() or
-                        search_text in target_str.lower()
-                    )
-                    if not match:
+                    match_user = search_text in user_display.lower()
+                    match_action = search_text in (log.action or "").lower()
+                    match_details = search_text in details_val.lower()
+                    if not (match_user or match_action or match_details):
                         continue
 
-                log_id = log.id
-                raw_payload = log.details_json or ""
-                action_name = log.action
+                action_color = ThemeColors.SAPPHIRE
+                action_str = (log.action or "").upper()
+                if "STOCK" in action_str:
+                    action_color = ThemeColors.EMERALD
+                elif "WASTE" in action_str:
+                    action_color = ThemeColors.CRIMSON
+                elif "ADJUST" in action_str:
+                    action_color = ThemeColors.AMBER_DARK
+                elif "AUTH" in action_str or "LOGIN" in action_str:
+                    action_color = ThemeColors.INDIGO
+                elif "STAFF" in action_str:
+                    action_color = ThemeColors.PURPLE
 
+                log_id = log.id
                 row = ft.DataRow(
                     cells=[
-                        ft.DataCell(ft.Text(dt_str, size=12)),
-                        ft.DataCell(ft.Text(user_display, weight=ft.FontWeight.W_500)),
-                        ft.DataCell(action_badge),
-                        ft.DataCell(ft.Text(target_str, color=ft.Colors.GREY_700)),
-                        ft.DataCell(ft.Text(details_preview, size=12, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS)),
+                        ft.DataCell(ft.Text(dt_str, size=12, color=ThemeColors.TEXT_MUTED)),
+                        ft.DataCell(ft.Text(user_display, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN)),
+                        ft.DataCell(create_badge(log.action or "-", f"{action_color}18", action_color)),
+                        ft.DataCell(ft.Text(target_display, color=ThemeColors.TEXT_MUTED)),
+                        ft.DataCell(ft.Text(details_short, size=12, color=ThemeColors.TEXT_MAIN)),
                         ft.DataCell(
                             ft.IconButton(
-                                ft.Icons.VISIBILITY,
-                                icon_color=ft.Colors.BLUE_700,
-                                tooltip="ดูรายละเอียด JSON เต็ม",
-                                on_click=lambda e, a=action_name, u=user_display, t=dt_str, p=raw_payload: self._show_detail_modal(a, u, t, p)
+                                ft.Icons.VISIBILITY_ROUNDED,
+                                icon_color=ThemeColors.SAPPHIRE,
+                                tooltip="ดูรายละเอียดทั้งหมด",
+                                on_click=lambda e, lid=log_id: self._show_log_details(lid)
                             )
                         )
                     ]
                 )
                 self.logs_table.rows.append(row)
 
-            if len(self.logs_table.rows) == 0:
-                self.logs_table.rows.append(
-                    ft.DataRow(cells=[ft.DataCell(ft.Text("-")), ft.DataCell(ft.Text("ไม่พบข้อมูลประวัติ")), ft.DataCell(ft.Text("-")), ft.DataCell(ft.Text("-")), ft.DataCell(ft.Text("-")), ft.DataCell(ft.Text("-"))])
-                )
-
             self._update_ui()
         finally:
             db.close()
 
-    def _get_action_badge(self, action: str):
-        color = ft.Colors.BLUE_700
-        bg = ft.Colors.BLUE_50
-        
-        if "WASTAGE" in action:
-            color = ft.Colors.RED_700
-            bg = ft.Colors.RED_50
-        elif "RECEIVE" in action or "PURCHASE" in action:
-            color = ft.Colors.GREEN_700
-            bg = ft.Colors.GREEN_50
-        elif "ADJUSTMENT" in action:
-            color = ft.Colors.AMBER_800
-            bg = ft.Colors.AMBER_50
-        elif "OVERDRAFT" in action:
-            color = ft.Colors.DEEP_ORANGE_800
-            bg = ft.Colors.DEEP_ORANGE_50
-        elif "LOGIN" in action:
-            color = ft.Colors.PURPLE_800
-            bg = ft.Colors.PURPLE_50
-
-        return ft.Container(
-            bgcolor=bg,
-            padding=ft.Padding.symmetric(horizontal=8, vertical=4),
-            border_radius=10,
-            content=ft.Text(action, size=11, weight=ft.FontWeight.BOLD, color=color)
-        )
-
-    def _show_detail_modal(self, action: str, user: str, timestamp: str, raw_json: str):
-        formatted_json = raw_json
+    def _show_log_details(self, log_id: int):
+        db = SessionLocal()
         try:
-            parsed = json.loads(raw_json)
-            formatted_json = json.dumps(parsed, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
+            log = db.query(AuditLog).filter(AuditLog.id == log_id).first()
+            if not log:
+                return
 
-        dialog = ft.AlertDialog(
-            title=ft.Row([
-                ft.Icon(ft.Icons.SECURITY, color=ft.Colors.BLUE_900),
-                ft.Text(f"รายละเอียดประวัติ [{action}]", weight=ft.FontWeight.BOLD, size=16)
-            ]),
-            content=ft.Container(
-                width=500,
-                content=ft.Column(
-                    spacing=10,
-                    tight=True,
-                    controls=[
-                        ft.Text(f"ผู้ดำเนินการ: {user}", weight=ft.FontWeight.W_500, size=13),
-                        ft.Text(f"เวลา: {timestamp}", color=ft.Colors.GREY_600, size=12),
-                        ft.Divider(height=1),
-                        ft.Text("ข้อมูลที่บันทึก (Details Payload):", weight=ft.FontWeight.BOLD, size=12),
-                        ft.TextField(
-                            value=formatted_json,
-                            multiline=True,
-                            min_lines=6,
-                            max_lines=12,
-                            read_only=True,
-                            text_size=12,
-                            bgcolor=ft.Colors.GREY_100
-                        )
-                    ]
-                )
-            ),
-            actions=[
-                ft.TextButton("ปิด", on_click=lambda e: self._close_dialog(dialog))
-            ]
-        )
-        self._open_dialog(dialog)
+            user_display = log.user.name if log.user else ("System" if not log.user_id else f"User #{log.user_id}")
+            dt_str = log.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log.timestamp else "-"
+            target_display = f"{log.target_type} #{log.target_id}" if (log.target_type and log.target_id) else (log.target_type or "-")
 
-    def _open_dialog(self, dialog: ft.AlertDialog):
-        try:
-            if hasattr(self.page_ref, "show_dialog"):
-                self.page_ref.show_dialog(dialog)
-            elif hasattr(self.page_ref, "open"):
-                self.page_ref.open(dialog)
-            else:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
-        except Exception:
+            json_details_str = log.details_json or "ไม่มีรายละเอียดเพิ่มเติม"
             try:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
+                parsed_json = json.loads(json_details_str)
+                json_details_str = json.dumps(parsed_json, indent=2, ensure_ascii=False)
             except Exception:
                 pass
 
+            dialog = ft.AlertDialog(
+                title=ft.Row([
+                    ft.Icon(ft.Icons.SHIELD_ROUNDED, color=ThemeColors.SAPPHIRE, size=24),
+                    ft.Text(f"รายละเอียด Log #{log.id} - {log.action}", weight=ft.FontWeight.BOLD, size=16)
+                ]),
+                content=ft.Container(
+                    width=480,
+                    content=ft.Column(
+                        tight=True,
+                        spacing=12,
+                        controls=[
+                            ft.Row([
+                                ft.Text("วันและเวลา:", weight=ft.FontWeight.BOLD, size=13),
+                                ft.Text(dt_str, size=13)
+                            ]),
+                            ft.Row([
+                                ft.Text("ผู้ดำเนินการ:", weight=ft.FontWeight.BOLD, size=13),
+                                ft.Text(user_display, size=13, color=ThemeColors.SAPPHIRE, weight=ft.FontWeight.BOLD)
+                            ]),
+                            ft.Row([
+                                ft.Text("เป้าหมาย (Target):", weight=ft.FontWeight.BOLD, size=13),
+                                ft.Text(target_display, size=13)
+                            ]),
+                            ft.Text("ข้อมูลที่บันทึก (Payload / Details):", weight=ft.FontWeight.BOLD, size=13),
+                            ft.TextField(
+                                value=json_details_str,
+                                multiline=True,
+                                min_lines=5,
+                                max_lines=8,
+                                read_only=True,
+                                text_size=12,
+                                bgcolor=ThemeColors.SURFACE_HOVER,
+                                border_color=ThemeColors.BORDER_LIGHT
+                            )
+                        ]
+                    )
+                ),
+                actions=[
+                    ft.TextButton("ปิด", on_click=lambda e: self._close_dialog(dialog))
+                ]
+            )
+            self._show_dialog(dialog)
+        finally:
+            db.close()
+
+    def _show_dialog(self, dialog: ft.AlertDialog):
+        open_dialog(self.page_ref, dialog)
+
     def _close_dialog(self, dialog: ft.AlertDialog = None):
-        try:
-            if hasattr(self.page_ref, "pop_dialog"):
-                self.page_ref.pop_dialog()
-            elif hasattr(self.page_ref, "close"):
-                self.page_ref.close(dialog)
-            elif dialog is not None:
-                dialog.open = False
-                self.page_ref.update()
-        except Exception:
-            if dialog is not None:
-                dialog.open = False
-                try:
-                    self.page_ref.update()
-                except Exception:
-                    pass
+        close_dialog(self.page_ref, dialog)
+        self._update_ui()
 
     def _update_ui(self):
         try:

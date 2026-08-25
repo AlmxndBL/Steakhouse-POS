@@ -1,6 +1,7 @@
 import flet as ft
 from database.connection import SessionLocal
 from services.auth_service import AuthService
+from components.theme import ThemeColors, create_card, create_badge, create_button
 from utils.navigation import navigate_to
 from utils.validators import Validator
 
@@ -8,16 +9,11 @@ class LoginView(ft.View):
     def __init__(self, page: ft.Page):
         self.page_ref = page
 
-        # Theme Colors
-        primary_color = ft.Colors.BLUE_900
-        bg_color = ft.Colors.BLUE_GREY_50
-        card_bg = ft.Colors.WHITE
-
         # Form Inputs
         self.username_input = ft.TextField(
             label="ชื่อผู้ใช้ (Username)",
-            prefix_icon=ft.Icons.PERSON_OUTLINE,
-            border_radius=10,
+            prefix_icon=ft.Icons.PERSON_OUTLINE_ROUNDED,
+            border_radius=8,
             width=360,
             autofocus=True,
             on_submit=lambda e: self.password_input.focus()
@@ -25,36 +21,32 @@ class LoginView(ft.View):
 
         self.password_input = ft.TextField(
             label="รหัสผ่าน (Password)",
-            prefix_icon=ft.Icons.LOCK_OUTLINE,
+            prefix_icon=ft.Icons.LOCK_OUTLINE_ROUNDED,
             password=True,
             can_reveal_password=True,
-            border_radius=10,
+            border_radius=8,
             width=360,
             on_submit=self._handle_login
         )
 
-        self.error_text = ft.Text("", color=ft.Colors.RED_600, size=13, weight=ft.FontWeight.W_500, visible=False)
+        self.error_text = ft.Text("", color=ThemeColors.CRIMSON, size=13, weight=ft.FontWeight.W_500, visible=False)
 
-        self.btn_login = ft.ElevatedButton(
+        self.btn_login = create_button(
             "เข้าสู่ระบบ (Sign In)",
-            icon=ft.Icons.LOGIN,
-            style=ft.ButtonStyle(
-                bgcolor=primary_color,
-                color=ft.Colors.WHITE,
-                shape=ft.RoundedRectangleBorder(radius=10),
-                padding=ft.Padding.symmetric(vertical=18, horizontal=24)
-            ),
+            icon=ft.Icons.LOGIN_ROUNDED,
+            bg_color=ThemeColors.BG_DARK,
+            height=46,
             width=360,
             on_click=self._handle_login
         )
 
         # Quick Demo Login Chips
         demo_accounts = [
-            ("เจ้าของร้าน", "owner", "admin1234", ft.Colors.INDIGO_700),
-            ("ผู้จัดการ", "manager", "mgr1234", ft.Colors.BLUE_700),
-            ("แคชเชียร์", "cashier", "cash1234", ft.Colors.GREEN_700),
-            ("พนักงานเสิร์ฟ", "waiter", "waiter1234", ft.Colors.TEAL_700),
-            ("ครัว (KDS)", "kitchen", "cook1234", ft.Colors.AMBER_800),
+            ("👑 เจ้าของร้าน (Owner)", "owner", "admin1234", ThemeColors.AMBER_DARK),
+            ("👔 ผู้จัดการ (Manager)", "manager", "mgr1234", ThemeColors.PURPLE),
+            ("💵 แคชเชียร์ (Cashier)", "cashier", "cash1234", ThemeColors.SAPPHIRE),
+            ("🍽️ พนักงานเสิร์ฟ (Waiter)", "waiter", "waiter1234", ThemeColors.EMERALD),
+            ("👨‍🍳 ครัว (KDS Chef)", "kitchen", "cook1234", ThemeColors.CRIMSON),
         ]
 
         demo_buttons = []
@@ -64,53 +56,65 @@ class LoginView(ft.View):
                 style=ft.ButtonStyle(
                     color=color,
                     shape=ft.RoundedRectangleBorder(radius=8),
+                    side=ft.BorderSide(1, f"{color}66"),
                     padding=ft.Padding.symmetric(horizontal=12, vertical=8)
                 ),
                 on_click=lambda e, user=u, pwd=p: self._fill_and_login(user, pwd)
             )
             demo_buttons.append(btn)
 
-        login_card = ft.Card(
-            elevation=4,
-            shadow_color=ft.Colors.BLACK26,
-            shape=ft.RoundedRectangleBorder(radius=20),
-            content=ft.Container(
-                bgcolor=card_bg,
-                width=440,
-                padding=ft.Padding.symmetric(horizontal=40, vertical=40),
+        login_card = create_card(
+            ft.Container(
+                width=420,
+                padding=ft.Padding.symmetric(horizontal=24, vertical=28),
                 content=ft.Column(
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    spacing=16,
+                    spacing=14,
                     tight=True,
                     controls=[
-                        ft.Icon(ft.Icons.RESTAURANT_MENU, size=52, color=primary_color),
-                        ft.Text("STEAKHOUSE POS", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                        ft.Text("ระบบจัดการร้านสเต๊กและคลังสินค้า", size=13, color=ft.Colors.GREY_600),
-                        ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
+                        ft.Container(
+                            width=56,
+                            height=56,
+                            bgcolor=ThemeColors.AMBER_GOLD,
+                            border_radius=12,
+                            alignment=ft.Alignment(0, 0),
+                            content=ft.Icon(ft.Icons.RESTAURANT_MENU_ROUNDED, size=32, color=ThemeColors.BG_DARK)
+                        ),
+                        ft.Column(
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            spacing=2,
+                            controls=[
+                                ft.Text("STEAKHOUSE POS", size=22, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN),
+                                ft.Text("ระบบจัดการร้านสเต๊กและคลังวัตถุดิบครบวงจร", size=12, color=ThemeColors.TEXT_MUTED)
+                            ]
+                        ),
+                        ft.Container(height=4),
                         self.error_text,
                         self.username_input,
                         self.password_input,
-                        ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
+                        ft.Container(height=2),
                         self.btn_login,
-                        ft.Divider(height=15, color=ft.Colors.GREY_200),
-                        ft.Text("ทดสอบเข้าสู่ระบบด่วน (Quick Demo)", size=12, color=ft.Colors.GREY_600, weight=ft.FontWeight.W_500),
+                        ft.Divider(height=16, color=ThemeColors.BORDER_LIGHT),
+                        ft.Text("ทดสอบเข้าสู่ระบบด่วน (1-Click Dev Persona):", size=11, color=ThemeColors.TEXT_MUTED, weight=ft.FontWeight.BOLD),
                         ft.Row(
                             alignment=ft.MainAxisAlignment.CENTER,
                             wrap=True,
-                            spacing=8,
-                            run_spacing=8,
+                            spacing=6,
+                            run_spacing=6,
                             controls=demo_buttons
                         )
                     ]
                 )
-            )
+            ),
+            padding=0,
+            border_radius=16
         )
 
         content_layout = ft.Container(
             expand=True,
-            bgcolor=bg_color,
-            alignment=ft.Alignment.CENTER,
+            bgcolor=ThemeColors.BG_DARK,
+            alignment=ft.Alignment(0, 0),
             content=login_card
         )
 
@@ -153,18 +157,21 @@ class LoginView(ft.View):
 
         db = SessionLocal()
         try:
+            username = u_res.value
+            password = p_res.value
             user = AuthService.authenticate(db, username, password)
             if user:
                 self.error_text.visible = False
                 self.page_ref.session.store.set("user_id", user.id)
                 self.page_ref.session.store.set("user_name", user.name)
-                self.page_ref.session.store.set("user_role", user.role.value)
+                self.page_ref.session.store.set("user_role", user.role.value if hasattr(user.role, "value") else str(user.role))
                 self.page_ref.session.store.set("username", user.username)
 
                 # Smart redirect based on role
-                if user.role.value == "KITCHEN":
+                role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
+                if role_str == "KITCHEN":
                     navigate_to(self.page_ref, "/kds")
-                elif user.role.value in ["OWNER", "MANAGER"]:
+                elif role_str in ["OWNER", "MANAGER"]:
                     navigate_to(self.page_ref, "/admin")
                 else:
                     navigate_to(self.page_ref, "/tables")

@@ -1,7 +1,7 @@
-# 🗺️ AI Context Index & Project Architecture Map (Nexus)
+# 🗺️ AI Context Index & Project Architecture Map (Apex 4.0)
 
 > **Single Source of Truth สำหรับ AI Agent:** สรุปโครงสร้าง สถาปัตยกรรม ฐานข้อมูล และสถานะของโปรเจกต์ Steakhouse POS เพื่อให้ Agent ทุกตัวเข้ามาทำงานต่อได้ทันทีโดยไม่ต้องสแกนหาไฟล์ทั้งระบบ
-> ⚠️ **Security Notice:** ห้ามใส่ Connection String, API Keys, Passwords หรือ Secrets จริงลงในไฟล์นี้โดยเด็ดขาด
+> ⚠️ **Security Notice:** ห้ามใส่ Connection String, API Keys, Passwords หรือ Secrets จริงลงในไฟล์นี้โดยเด็ดขาด ให้ใช้ Environment Variables หรือ Pattern `<secret:VAR_NAME>` แทนเสมอ
 
 ---
 
@@ -9,9 +9,10 @@
 
 - **ชื่อโปรเจกต์:** Steakhouse POS & Recipe Inventory Management System
 - **คำอธิบาย:** ระบบบริหารจัดการร้านสเต๊กและคลังวัตถุดิบแบบครบวงจร รองรับทั้งหน้าร้าน (POS), จอคิวครัว (KDS), และระบบหลังบ้านผู้บริหาร (Executive Back-office) พร้อมระบบคำนวณต้นทุนวัตถุดิบ Recipe BOM แบบอัตโนมัติ
+- **AI Agent Protocol:** Apex-core v4.0 (Clean `.apex` Container Architecture)
 - **Tech Stack หลัก:**
   - **Core Framework:** Python 3.11+ + Flet 0.86.5 (GUI & Web App)
-  - **Database & ORM:** PostgreSQL (Docker) / SQLite (`pos_data.db` Local) + SQLAlchemy ORM
+  - **Database & ORM:** SQLite (`pos_data.db` Local) / PostgreSQL (Docker) + SQLAlchemy ORM
   - **Security & Auth:** Username + Password (bcrypt hashing) + RBAC 5 Roles + 1-Click Dev Persona Switcher
   - **Infrastructure:** Docker Compose (Multi-stage build, Port 8000)
 - **Environment Status:** Development & Sandbox Tested (100% Pass)
@@ -22,11 +23,17 @@
 
 ```text
 POS flet/
-├── AGENTS.md                  # 🧠 Master Agent Rules & Multi-Role System Blueprint
+├── .apex/                     # ⚡ Apex-core v4.0 Container (Rules, Skills, Templates, Scripts)
+│   ├── rules/                 # 6 Core Engineering Pillars (01-security to 06-testing)
+│   ├── skills/                # 4 Consolidated Skills (backend-data, cartography, frontend, quality-verify)
+│   ├── templates/             # Architecture Blueprints, UI & Utils
+│   └── scripts/               # Context Scanner, Git Shield, Framework Verifier
+├── AGENTS.md                  # 🧠 Master AI Agent Operating Protocol (v4.0)
 ├── AI-Context-Index.md        # 🗺️ แผนที่สรุปบริบทโปรเจกต์ (ไฟล์นี้)
 ├── docker-compose.yml         # 🐳 Docker Compose (App & PostgreSQL DB)
 ├── Dockerfile                 # 📦 Multi-stage Python 3.11 build
 ├── main.py                    # 🚦 App Entrypoint & RBAC Route Dispatcher
+├── requirements.txt           # 📦 Python Dependencies
 │
 ├── database/                  # 🗄️ ฐานข้อมูลและ Seeding
 │   ├── connection.py          # SQLAlchemy SessionLocal & Engine setup
@@ -59,68 +66,47 @@ POS flet/
 │   ├── modifier_dialog.py     # Steak Doneness & Sauce Customization Modal
 │   └── payment_dialog.py      # Cash / QR PromptPay Checkout Modal
 │
-├── tests/                     # 🧪 Automated Sandbox Test Suite (DoD Gate)
-│   ├── run_all_tests.py       # 🚀 Master Test Runner (ANSI/ASCII Summary)
-│   ├── test_auth_rbac.py      # 👥 Multi-role Persona Matrix Tests
-│   ├── test_bom_inventory.py  # 📦 Stock Purchase In, Lots, Wastage & BOM Tests
-│   ├── test_form_validation.py# 🛡️ Input Validation Tests (Prices, Dates, Capacity)
-│   ├── test_pos_order_flow.py # 💵 End-to-End Dine-in & Checkout Flow Tests
-│   ├── test_reports_analytics.py # 📊 Sales Aggregation, Charts & CSV Export Tests
-│   ├── test_settings_crud.py  # 🥩 Menu & Table CRUD Lifecycle Tests
-│   └── test_staff_management.py # 👥 Staff CRUD & Duplicate Prevention Tests
+├── utils/                     # 🛠️ Utility Functions & Helpers
+│   ├── export_csv.py          # CSV File Export Engine
+│   └── formatters.py          # Currency & Date/Time Formatting
 │
-└── utils/
-    └── navigation.py          # Navigation helper with view pop safety
+└── tests/                     # 🧪 Unit & Integration Test Suite
 ```
 
 ---
 
-## 👥 3. ระบบยืนยันตัวตนและสิทธิ์ (Authentication & RBAC Matrix)
+## 🗄️ 3. Core Domain Models (ฐานข้อมูลหลัก)
 
-| Username | Password | Role | สิทธิ์การเข้าถึง (Accessible Workspaces) |
-|---|---|---|---|
-| `owner` | `admin1234` | `UserRole.OWNER` | ทุกหน้า (Dashboard, Staff, Menus, Tables, Stock, Reports, POS, KDS) |
-| `manager` | `mgr1234` | `UserRole.MANAGER` | ทุกหน้า (Dashboard, Staff, Menus, Tables, Stock, Reports, POS, KDS) |
-| `cashier` | `cash1234` | `UserRole.CASHIER` | หน้าร้าน POS (`/tables`, `/pos`), จอครัว (`/kds`) |
-| `waiter` | `waiter1234` | `UserRole.WAITER` | ผังโต๊ะ & สั่งอาหาร (`/tables`, `/pos`) |
-| `kitchen` | `cook1234` | `UserRole.KITCHEN` | จอคิวครัวเท่านั้น (`/kds`) |
-
----
-
-## 🗄️ 4. ฐานข้อมูลและแบบจำลอง (Core Domain Models)
-
-1. **`User`:** `id`, `username` (unique), `password_hash`, `name`, `role` (OWNER/MANAGER/CASHIER/WAITER/KITCHEN), `phone`, `is_active`
-2. **`Table`:** `id`, `table_number`, `capacity`, `zone`, `status` (VACANT/OCCUPIED/RESERVED)
-3. **`Category` & `MenuItem`:** หมวดหมู่อาหาร, ชื่อเมนู, ราคาขาย, สถานะเปิด/ปิดการขาย, Soft-delete (`is_active`)
-4. **`Ingredient` & `RecipeBOM`:** วัตถุดิบ, หน่วยนับ, ต้นทุนเฉลี่ย, สูตรอาหารผูกกับ Menu Item
-5. **`StockLot` & `StockTransaction`:** วัตถุดิบราย Lot (FIFO), วันหมดอายุ, ประวัติการรับของเข้า (Purchase In) และของเสีย (Wastage)
-6. **`Order` & `OrderItem`:** รายการสั่งอาหาร, ประเภทบิล (Dine-in/Takeaway), ส่วนลด, Service Charge 10%, VAT 7%, ยอดสุทธิ, สถานะบิล (PENDING/CONFIRMED/COOKING/READY/PAID/CANCELLED)
-7. **`PaymentAuditLog`:** บันทึกประวัติการรับชำระเงิน ตรวจสอบความถูกต้องของกระแสเงินสด
+- **User (`users`):** ระบบบัญชีและสิทธิ์ RBAC (Admin, Manager, Cashier, Chef, Waiter) + Password Hash (bcrypt)
+- **DiningTable (`dining_tables`):** ผังโต๊ะ โซน (Indoor, VIP, Outdoor) และสถานะโต๊ะ (Available, Occupied, Reserved, Billed)
+- **MenuCategory & MenuItem (`menu_categories`, `menu_items`):** เมนูอาหาร หมวดหมู่ ราคา ต้นทุนโดยประมาณ และสถานะเปิด/ปิดขาย
+- **Ingredient & StockLot (`ingredients`, `stock_lots`):** คลังวัตถุดิบ รายการล็อตนำเข้า (FIFO), วันหมดอายุ, ต้นทุนต่อหน่วย, Reorder Point
+- **RecipeItem (`recipe_items`):** สูตรอาหาร (BOM) เชื่อมโยงเมนูกับวัตถุดิบและสัดส่วนปริมาณที่ใช้ตัดสต็อก
+- **StockMovement (`stock_movements`):** ประวัติการเคลื่อนไหวสต็อก (In, Out, Waste, Adjustment, Sale)
+- **Order & OrderItem (`orders`, `order_items`):** ข้อมูลบิล รายการอาหารที่สั่ง สถานะออเดอร์ (Pending, Cooking, Served, Completed, Cancelled) และ Options/Modifiers (เช่น ความสุก, ซอส)
+- **Payment (`payments`):** บันทึกการชำระเงิน (Cash, QR PromptPay, Credit Card), ยอดเงินที่รับ, เงินทอน, และเลขอ้างอิง E-Receipt
 
 ---
 
-## 🧪 5. การทดสอบและการรันระบบ (Verification & Run Commands)
+## 🔌 4. Key Workspaces & Route Map
 
-### 🚀 รันระบบในโหมด Docker:
-```bash
-docker-compose up -d --build
-# เข้าใช้งานผ่าน Web Browser: http://localhost:8000
-```
-
-### 🧪 รัน Master Sandbox Test Suite (17/17 Passed 100%):
-```bash
-docker-compose exec -e PYTHONPATH=/app -T app python tests/run_all_tests.py
-```
+- `🔑 /login` $\rightarrow$ Authentication Screen + 1-Click Dev Persona Switcher
+- `👑 /admin` $\rightarrow$ Executive Dashboard (KPI Cards, Real-time Sales, Daily Revenue)
+- `🥩 /admin/menus` $\rightarrow$ Menu Management (Create/Edit Menu, Category, Cost Estimator)
+- `🪑 /admin/tables` $\rightarrow$ Table & Zone Floor Plan Management
+- `👥 /admin/staff` $\rightarrow$ Employee Lifecycle & Role Permission Assignment
+- `📦 /admin/stock` $\rightarrow$ Inventory, Stock Inbound, Recipe BOM, Waste Log
+- `📊 /admin/reports` $\rightarrow$ Sales Analytics, Category Share, Export CSV
+- `🍽️ /tables` $\rightarrow$ Interactive Dine-in Table Floor Map (POS Front)
+- `💵 /pos` $\rightarrow$ Point of Sale Ordering & Payment Terminal
+- `👨‍🍳 /kds` $\rightarrow$ Kitchen Display System (Real-time Order Queue for Chefs)
 
 ---
 
-## 📌 6. สถานะงานปัจจุบันและสิ่งที่ต้องทำต่อในรอบถัดไป (Pending Tasks & Next Steps)
+## 🚨 5. Project-Specific Red-Lines (ข้อห้ามเฉพาะโปรเจกต์นี้)
 
-- **สถานะระบบปัจจุบัน:** ฟังก์ชันหลักทั้งหมด (Auth, RBAC, Back-office, POS, KDS, Stock BOM, Reports, Sandbox Tests 17/17) ทำงานสมบูรณ์
-- **📋 ประเด็นที่ค้างอยู่ (Pending Issue for Next Session):**
-  - **ปัญหา:** ปุ่ม *"📥 ดาวน์โหลดไฟล์ (Download)"* บนโมดอล Export CSV ในหน้ารายงาน (`/admin/reports`) เมื่อรันผ่าน Web Browser (Docker) ยังไม่สามารถทริกเกอร์ให้ Browser โหลดไฟล์ลงเครื่อง Client ได้ทันที
-  - **การทำงานปัจจุบัน:** ไฟล์ถูกเซฟลงโฟลเดอร์ `exports/` บน Server เรียบร้อยแล้ว และสามารถใช้ปุ่ม *"📋 คัดลอกข้อมูล"* นำไปวางใน Excel / Sheets ได้ แต่ปุ่มดาวน์โหลดตรงผ่านบราวเซอร์ยังต้องปรับปรุง
-  - **แนวทางแก้ไขในรอบหน้า (Action Plan):**
-    1. ทำ REST API Endpoint ดาวน์โหลดไฟล์ตรง เช่น `/api/download/{filename}` โดยใช้ FastAPI `FileResponse(..., headers={"Content-Disposition": "attachment; filename=..."})`
-    2. หรือใช้ JavaScript Blob Download Trigger ผ่าน `page.run_javascript(...)`
-
+1. **ห้ามตัดสต็อกแบบข้าม FIFO:** การตัดสต็อกวัตถุดิบผ่าน `bom_engine.py` ต้องเรียงตามล็อตเข้าก่อนออกก่อน (FIFO by `created_at` / `expiry_date`) เสมอ
+2. **ห้าม Hardcode Password:** รหัสผ่านพนักงานทุกคนต้องถูก Hash ด้วย `bcrypt` ก่อนบันทึกลงใน Database เสมอ
+3. **ห้าม Bypass RBAC Layer:** ทุก Action ที่เกี่ยวกับ Admin (จัดการพนักงาน, ปรับแต่งสต็อก, ดูรายงานยอดขาย) ต้องผ่านการตรวจ Role Permission ที่ `auth_service.py` เสมอ
+4. **Dev Persona Quick Login Gate:** ปุ่มลัดสำหรับ Login ทดสอบในหน้า `login_view.py` ต้องทำงานเฉพาะในโหมด Development และต้องไม่เปิดช่องโหว่เมื่อ Build ขึ้น Production
+5. **No Blind Global Git Restores:** ในกรณีเกิดข้อผิดพลาด ให้ Rollback เฉพาะไฟล์ที่แก้ไขในรอบนั้น ห้ามสั่ง `git restore .` หรือ `git reset --hard` เด็ดขาด

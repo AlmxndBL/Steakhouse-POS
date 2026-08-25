@@ -2,54 +2,20 @@ import flet as ft
 from database.connection import SessionLocal
 from database.models import User, UserRole
 from services.staff_service import StaffService
-from utils.navigation import navigate_to
+from components.theme import ThemeColors, create_card, create_badge, create_button
+from components.admin_shell import AdminShell
 from utils.validators import Validator
+from utils.dialogs import open_dialog, close_dialog
 
 class StaffView(ft.View):
     def __init__(self, page: ft.Page):
         self.page_ref = page
-        user_name = page.session.store.get("user_name") or "ผู้บริหาร"
-
-        # Theme Colors
-        primary_color = ft.Colors.BLUE_900
-        bg_color = ft.Colors.BLUE_GREY_50
-        card_bg = ft.Colors.WHITE
-
-        # Header Navigation
-        nav_header = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=30, vertical=16),
-            bgcolor=primary_color,
-            shadow=ft.BoxShadow(spread_radius=1, blur_radius=5, color=ft.Colors.BLACK12),
-            content=ft.Row(
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                controls=[
-                    ft.Row(
-                        spacing=12,
-                        controls=[
-                            ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("ระบบจัดการพนักงาน (Staff Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
-                        ]
-                    ),
-                    ft.ElevatedButton(
-                        "+ เพิ่มพนักงานใหม่",
-                        icon=ft.Icons.PERSON_ADD,
-                        style=ft.ButtonStyle(
-                            bgcolor=ft.Colors.GREEN_600,
-                            color=ft.Colors.WHITE,
-                            shape=ft.RoundedRectangleBorder(radius=8),
-                            padding=ft.Padding.symmetric(horizontal=16, vertical=10)
-                        ),
-                        on_click=self._open_add_staff_dialog
-                    )
-                ]
-            )
-        )
 
         # Staff Table
         self.staff_table = ft.DataTable(
-            heading_row_color=ft.Colors.GREY_100,
-            heading_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-            data_row_color={"hovered": ft.Colors.BLUE_50},
+            heading_row_color=ThemeColors.SURFACE_HOVER,
+            heading_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN, size=13),
+            data_row_color={"hovered": f"{ThemeColors.SAPPHIRE}11"},
             border_radius=8,
             columns=[
                 ft.DataColumn(ft.Text("ID")),
@@ -63,44 +29,62 @@ class StaffView(ft.View):
             rows=[]
         )
 
-        body_content = ft.Container(
-            expand=True,
-            padding=30,
-            content=ft.Card(
-                elevation=2,
-                shape=ft.RoundedRectangleBorder(radius=12),
-                content=ft.Container(
-                    bgcolor=card_bg,
-                    padding=25,
-                    expand=True,
-                    content=ft.Column(
-                        expand=True,
-                        spacing=15,
+        header_actions = [
+            create_button(
+                "+ เพิ่มพนักงานใหม่",
+                icon=ft.Icons.PERSON_ADD_ROUNDED,
+                bg_color=ThemeColors.EMERALD,
+                on_click=self._open_add_staff_dialog
+            )
+        ]
+
+        table_card = create_card(
+            ft.Column(
+                expand=True,
+                spacing=16,
+                controls=[
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
-                            ft.Row(
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            ft.Column(
+                                spacing=2,
                                 controls=[
-                                    ft.Text("รายชื่อพนักงานทั้งหมดในระบบ", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                    ft.Text("คลิกไอคอนดินสอ เพื่อแก้ไขข้อมูล หรือไอคอนกุญแจ เพื่อรีเซ็ตรหัสผ่าน", size=13, color=ft.Colors.GREY_600)
+                                    ft.Text("รายชื่อพนักงานและสิทธิ์การเข้าใช้งานทั้งหมด", size=16, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN),
+                                    ft.Text("คลิกไอคอนดินสอ เพื่อแก้ไขข้อมูล หรือไอคอนกุญแจ เพื่อรีเซ็ตรหัสผ่าน", size=12, color=ThemeColors.TEXT_MUTED)
                                 ]
                             ),
-                            ft.Container(expand=True, content=ft.ListView([self.staff_table], expand=True))
+                            ft.ElevatedButton(
+                                "รีเฟรชรายชื่อ",
+                                icon=ft.Icons.REFRESH_ROUNDED,
+                                style=ft.ButtonStyle(
+                                    bgcolor=ThemeColors.SURFACE_WHITE,
+                                    color=ThemeColors.TEXT_MAIN,
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                    side=ft.BorderSide(1, ThemeColors.BORDER_LIGHT)
+                                ),
+                                on_click=lambda e: self._load_staff_data()
+                            )
                         ]
-                    )
-                )
-            )
+                    ),
+                    ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
+                    ft.Container(expand=True, content=ft.ListView([self.staff_table], expand=True))
+                ]
+            ),
+            padding=20
+        )
+
+        shell = AdminShell(
+            page=page,
+            current_route="/admin/staff",
+            title="จัดการพนักงาน & สิทธิ์ (Staff & RBAC)",
+            subtitle="เพิ่มพนักงานใหม่ กำหนดบทบาทสิทธิ์ 5 ระดับ และรีเซ็ตรหัสผ่าน",
+            content_control=table_card,
+            header_actions=header_actions
         )
 
         super().__init__(
             route="/admin/staff",
-            controls=[
-                ft.Column(
-                    expand=True,
-                    spacing=0,
-                    controls=[nav_header, body_content]
-                )
-            ],
-            bgcolor=bg_color,
+            controls=[shell],
             padding=0,
             spacing=0
         )
@@ -110,59 +94,51 @@ class StaffView(ft.View):
     def _load_staff_data(self):
         db = SessionLocal()
         try:
-            staff_list = StaffService.get_all_staff(db, active_only=False)
+            users = StaffService.get_all_staff(db)
             self.staff_table.rows.clear()
-            for s in staff_list:
-                status_color = ft.Colors.GREEN_700 if s.is_active else ft.Colors.RED_700
-                status_bg = ft.Colors.GREEN_50 if s.is_active else ft.Colors.RED_50
-                status_text = "ปฏิบัติงาน" if s.is_active else "ปิดใช้งาน"
-                role_val = s.role.value if hasattr(s.role, "value") else str(s.role)
-                user_id = s.id
+            for u in users:
+                status_color = ThemeColors.EMERALD if u.is_active else ThemeColors.CRIMSON
+                status_bg = f"{ThemeColors.EMERALD}18" if u.is_active else f"{ThemeColors.CRIMSON}18"
+                status_text = "กำลังปฏิบัติงาน" if u.is_active else "ปิดใช้งาน"
+                user_id = u.id
+
+                role_str = u.role.value if hasattr(u.role, "value") else str(u.role)
+                role_color = ThemeColors.INDIGO
+                if role_str == "OWNER":
+                    role_color = ThemeColors.AMBER_DARK
+                elif role_str == "MANAGER":
+                    role_color = ThemeColors.PURPLE
+                elif role_str == "CASHIER":
+                    role_color = ThemeColors.SAPPHIRE
+                elif role_str == "KITCHEN":
+                    role_color = ThemeColors.CRIMSON
+                elif role_str == "WAITER":
+                    role_color = ThemeColors.EMERALD
 
                 row = ft.DataRow(
                     cells=[
-                        ft.DataCell(ft.Text(str(s.id), weight=ft.FontWeight.BOLD)),
-                        ft.DataCell(ft.Text(s.username, color=ft.Colors.BLUE_900, weight=ft.FontWeight.W_600)),
-                        ft.DataCell(ft.Text(s.name, weight=ft.FontWeight.W_500)),
-                        ft.DataCell(
-                            ft.Container(
-                                padding=ft.Padding.symmetric(horizontal=10, vertical=4),
-                                bgcolor=ft.Colors.BLUE_GREY_100,
-                                border_radius=12,
-                                content=ft.Text(role_val, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900)
-                            )
-                        ),
-                        ft.DataCell(ft.Text(s.phone or "-")),
-                        ft.DataCell(
-                            ft.Container(
-                                padding=ft.Padding.symmetric(horizontal=10, vertical=4),
-                                bgcolor=status_bg,
-                                border_radius=12,
-                                content=ft.Text(status_text, size=12, color=status_color, weight=ft.FontWeight.BOLD)
-                            )
-                        ),
+                        ft.DataCell(ft.Text(str(u.id), color=ThemeColors.TEXT_MUTED)),
+                        ft.DataCell(ft.Text(u.username, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN)),
+                        ft.DataCell(ft.Text(u.name, weight=ft.FontWeight.W_500, color=ThemeColors.TEXT_MAIN)),
+                        ft.DataCell(create_badge(role_str, f"{role_color}18", role_color)),
+                        ft.DataCell(ft.Text(u.phone or "-", color=ThemeColors.TEXT_MUTED)),
+                        ft.DataCell(create_badge(status_text, status_bg, status_color)),
                         ft.DataCell(
                             ft.Row(
                                 spacing=4,
                                 controls=[
                                     ft.IconButton(
-                                        ft.Icons.EDIT, 
-                                        icon_color=ft.Colors.BLUE_700, 
+                                        ft.Icons.EDIT_ROUNDED, 
+                                        icon_color=ThemeColors.SAPPHIRE, 
                                         tooltip="แก้ไขข้อมูล", 
                                         on_click=lambda e, uid=user_id: self._open_edit_staff_dialog(uid)
                                     ),
                                     ft.IconButton(
-                                        ft.Icons.PASSWORD, 
-                                        icon_color=ft.Colors.AMBER_800, 
+                                        ft.Icons.KEY_ROUNDED, 
+                                        icon_color=ThemeColors.AMBER_DARK, 
                                         tooltip="รีเซ็ตรหัสผ่าน", 
                                         on_click=lambda e, uid=user_id: self._open_reset_password_dialog(uid)
                                     ),
-                                    ft.IconButton(
-                                        ft.Icons.TOGGLE_ON if s.is_active else ft.Icons.TOGGLE_OFF,
-                                        icon_color=ft.Colors.GREEN_700 if s.is_active else ft.Colors.GREY_400,
-                                        tooltip="เปิด/ปิดการใช้งาน",
-                                        on_click=lambda e, uid=user_id: self._toggle_staff_status(uid)
-                                    )
                                 ]
                             )
                         )
@@ -173,32 +149,22 @@ class StaffView(ft.View):
         finally:
             db.close()
 
-    def _toggle_staff_status(self, user_id: int):
-        db = SessionLocal()
-        try:
-            StaffService.toggle_active_status(db, user_id)
-            self._load_staff_data()
-        except Exception as err:
-            self._show_info_dialog("เกิดข้อผิดพลาด", str(err))
-        finally:
-            db.close()
-
     def _open_add_staff_dialog(self, e):
-        username_input = ft.TextField(label="ชื่อผู้ใช้ (Username เช่น somchai01)", width=380)
-        name_input = ft.TextField(label="ชื่อ-นามสกุล (แสดงในบิล)", width=380)
-        password_input = ft.TextField(label="รหัสผ่าน (อย่างน้อย 4 ตัวอักษร)", password=True, can_reveal_password=True, width=380)
+        username_input = ft.TextField(label="ชื่อผู้ใช้สำหรับเข้าสู่ระบบ (Username)", width=380)
+        password_input = ft.TextField(label="รหัสผ่านเริ่มต้น", password=True, can_reveal_password=True, width=380)
+        name_input = ft.TextField(label="ชื่อ-นามสกุลพนักงาน", width=380)
         phone_input = ft.TextField(label="เบอร์โทรศัพท์ (ถ้ามี)", width=380)
         role_dropdown = ft.Dropdown(
             label="ตำแหน่ง (Role)",
             width=380,
             options=[
-                ft.dropdown.Option(UserRole.WAITER.value, "พนักงานเสิร์ฟ (WAITER)"),
-                ft.dropdown.Option(UserRole.CASHIER.value, "แคชเชียร์ (CASHIER)"),
-                ft.dropdown.Option(UserRole.KITCHEN.value, "พนักงานครัว (KITCHEN)"),
-                ft.dropdown.Option(UserRole.MANAGER.value, "ผู้จัดการ (MANAGER)"),
-                ft.dropdown.Option(UserRole.OWNER.value, "เจ้าของร้าน (OWNER)"),
+                ft.dropdown.Option("OWNER", "👑 OWNER (เจ้าของร้าน / ผู้บริหารสูงสุด)"),
+                ft.dropdown.Option("MANAGER", "👔 MANAGER (ผู้จัดการร้าน)"),
+                ft.dropdown.Option("CASHIER", "💵 CASHIER (แคชเชียร์ / คิดเงิน)"),
+                ft.dropdown.Option("WAITER", "🍽️ WAITER (พนักงานเสิร์ฟ / รับออเดอร์)"),
+                ft.dropdown.Option("KITCHEN", "👨‍🍳 KITCHEN (เชฟ / ประจำครัว)"),
             ],
-            value=UserRole.WAITER.value
+            value="WAITER"
         )
 
         def submit(e_sub):
@@ -211,19 +177,19 @@ class StaffView(ft.View):
             else:
                 username_input.error_text = None
 
+            pw_res = Validator.validate_password(password_input.value)
+            if not pw_res.is_valid:
+                password_input.error_text = pw_res.error
+                has_error = True
+            else:
+                password_input.error_text = None
+
             n_res = Validator.validate_required_text(name_input.value, field_name="ชื่อ-นามสกุล", min_len=2, max_len=100)
             if not n_res.is_valid:
                 name_input.error_text = n_res.error
                 has_error = True
             else:
                 name_input.error_text = None
-
-            p_res = Validator.validate_password(password_input.value, min_len=4)
-            if not p_res.is_valid:
-                password_input.error_text = p_res.error
-                has_error = True
-            else:
-                password_input.error_text = None
 
             ph_res = Validator.validate_phone(phone_input.value, required=False)
             if not ph_res.is_valid:
@@ -238,19 +204,22 @@ class StaffView(ft.View):
 
             db = SessionLocal()
             try:
-                selected_role = UserRole(role_dropdown.value)
+                selected_role = UserRole[role_dropdown.value]
                 StaffService.create_staff(
                     db,
                     username=u_res.value,
+                    password=pw_res.value,
                     name=n_res.value,
-                    password=password_input.value.strip(),
                     role=selected_role,
                     phone=ph_res.value
                 )
                 self._close_dialog(dialog)
                 self._load_staff_data()
+            except ValueError as val_err:
+                username_input.error_text = str(val_err)
+                self._update_ui()
             except Exception as err:
-                username_input.error_text = str(err)
+                username_input.error_text = f"เกิดข้อผิดพลาด: {err}"
                 self._update_ui()
             finally:
                 db.close()
@@ -259,14 +228,18 @@ class StaffView(ft.View):
             title=ft.Text("เพิ่มพนักงานใหม่", weight=ft.FontWeight.BOLD),
             content=ft.Container(
                 width=400,
-                content=ft.Column([username_input, name_input, password_input, role_dropdown, phone_input], spacing=12, tight=True)
+                content=ft.Column(
+                    tight=True,
+                    spacing=12,
+                    controls=[username_input, password_input, name_input, phone_input, role_dropdown]
+                )
             ),
             actions=[
                 ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
-                ft.ElevatedButton("บันทึกพนักงาน", style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE), on_click=submit)
+                create_button("บันทึกพนักงาน", bg_color=ThemeColors.EMERALD, on_click=submit)
             ]
         )
-        self._open_dialog(dialog)
+        self._show_dialog(dialog)
 
     def _open_edit_staff_dialog(self, user_id: int):
         db = SessionLocal()
@@ -275,23 +248,25 @@ class StaffView(ft.View):
             if not user:
                 return
 
-            name_input = ft.TextField(label="ชื่อ-นามสกุล", value=user.name, width=380)
+            name_input = ft.TextField(label="ชื่อ-นามสกุลพนักงาน", value=user.name, width=380)
             phone_input = ft.TextField(label="เบอร์โทรศัพท์", value=user.phone or "", width=380)
-            role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+            
+            cur_role = user.role.value if hasattr(user.role, "value") else str(user.role)
             role_dropdown = ft.Dropdown(
                 label="ตำแหน่ง (Role)",
                 width=380,
                 options=[
-                    ft.dropdown.Option(UserRole.WAITER.value, "พนักงานเสิร์ฟ (WAITER)"),
-                    ft.dropdown.Option(UserRole.CASHIER.value, "แคชเชียร์ (CASHIER)"),
-                    ft.dropdown.Option(UserRole.KITCHEN.value, "พนักงานครัว (KITCHEN)"),
-                    ft.dropdown.Option(UserRole.MANAGER.value, "ผู้จัดการ (MANAGER)"),
-                    ft.dropdown.Option(UserRole.OWNER.value, "เจ้าของร้าน (OWNER)"),
+                    ft.dropdown.Option("OWNER", "👑 OWNER (เจ้าของร้าน / ผู้บริหารสูงสุด)"),
+                    ft.dropdown.Option("MANAGER", "👔 MANAGER (ผู้จัดการร้าน)"),
+                    ft.dropdown.Option("CASHIER", "💵 CASHIER (แคชเชียร์ / คิดเงิน)"),
+                    ft.dropdown.Option("WAITER", "🍽️ WAITER (พนักงานเสิร์ฟ / รับออเดอร์)"),
+                    ft.dropdown.Option("KITCHEN", "👨‍🍳 KITCHEN (เชฟ / ประจำครัว)"),
                 ],
-                value=role_val
+                value=cur_role
             )
+            is_active_switch = ft.Switch(label="สถานะปฏิบัติงาน (Active)", value=user.is_active)
 
-            def submit(e_sub):
+            def submit_edit(e_sub):
                 has_error = False
 
                 n_res = Validator.validate_required_text(name_input.value, field_name="ชื่อ-นามสกุล", min_len=2, max_len=100)
@@ -314,124 +289,90 @@ class StaffView(ft.View):
 
                 db_inner = SessionLocal()
                 try:
-                    selected_role = UserRole(role_dropdown.value)
+                    selected_role = UserRole[role_dropdown.value]
                     StaffService.update_staff(
                         db_inner,
                         user_id=user_id,
                         name=n_res.value,
                         role=selected_role,
                         phone=ph_res.value,
-                        is_active=user.is_active
+                        is_active=is_active_switch.value
                     )
                     self._close_dialog(dialog)
                     self._load_staff_data()
                 except Exception as err:
-                    name_input.error_text = str(err)
+                    name_input.error_text = f"เกิดข้อผิดพลาด: {err}"
                     self._update_ui()
                 finally:
                     db_inner.close()
 
             dialog = ft.AlertDialog(
-                title=ft.Text(f"แก้ไขพนักงาน [{user.username}]", weight=ft.FontWeight.BOLD),
+                title=ft.Text(f"แก้ไขข้อมูลพนักงาน: {user.username}", weight=ft.FontWeight.BOLD),
                 content=ft.Container(
                     width=400,
-                    content=ft.Column([name_input, role_dropdown, phone_input], spacing=12, tight=True)
+                    content=ft.Column(
+                        tight=True,
+                        spacing=12,
+                        controls=[name_input, phone_input, role_dropdown, is_active_switch]
+                    )
                 ),
                 actions=[
                     ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
-                    ft.ElevatedButton("บันทึกการแก้ไข", style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE), on_click=submit)
+                    create_button("บันทึกการแก้ไข", bg_color=ThemeColors.SAPPHIRE, on_click=submit_edit)
                 ]
             )
-            self._open_dialog(dialog)
+            self._show_dialog(dialog)
         finally:
             db.close()
 
     def _open_reset_password_dialog(self, user_id: int):
-        db = SessionLocal()
-        try:
-            user = StaffService.get_staff_by_id(db, user_id)
-            if not user:
+        new_password_input = ft.TextField(label="รหัสผ่านใหม่", password=True, can_reveal_password=True, width=380)
+
+        def submit_reset(e_sub):
+            pw_res = Validator.validate_password(new_password_input.value)
+            if not pw_res.is_valid:
+                new_password_input.error_text = pw_res.error
+                self._update_ui()
                 return
 
-            new_pw_input = ft.TextField(label="รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)", password=True, can_reveal_password=True, width=380)
+            db = SessionLocal()
+            try:
+                StaffService.reset_password(db, user_id=user_id, new_password=pw_res.value)
+                self._close_dialog(dialog)
+                self._show_info_dialog("สำเร็จ", "รีเซ็ตรหัสผ่านเรียบร้อยแล้ว")
+            except Exception as err:
+                new_password_input.error_text = f"เกิดข้อผิดพลาด: {err}"
+                self._update_ui()
+            finally:
+                db.close()
 
-            def submit(e_sub):
-                p_res = Validator.validate_password(new_pw_input.value, min_len=4)
-                if not p_res.is_valid:
-                    new_pw_input.error_text = p_res.error
-                    self._update_ui()
-                    return
-
-                db_inner = SessionLocal()
-                try:
-                    StaffService.reset_password(db_inner, user_id, new_pw_input.value.strip())
-                    self._close_dialog(dialog)
-                    self._show_info_dialog("สำเร็จ", f"รีเซ็ตรหัสผ่านของ {user.username} เรียบร้อยแล้ว")
-                except Exception as err:
-                    new_pw_input.error_text = str(err)
-                    self._update_ui()
-                finally:
-                    db_inner.close()
-
-            dialog = ft.AlertDialog(
-                title=ft.Text(f"รีเซ็ตรหัสผ่าน [{user.username}]", weight=ft.FontWeight.BOLD),
-                content=ft.Container(
-                    width=400,
-                    content=ft.Column([new_pw_input], spacing=12, tight=True)
-                ),
-                actions=[
-                    ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
-                    ft.ElevatedButton("ยืนยันเปลี่ยนรหัส", style=ft.ButtonStyle(bgcolor=ft.Colors.AMBER_800, color=ft.Colors.WHITE), on_click=submit)
-                ]
-            )
-            self._open_dialog(dialog)
-        finally:
-            db.close()
-
-    def _show_info_dialog(self, title: str, message: str):
         dialog = ft.AlertDialog(
-            title=ft.Text(title, weight=ft.FontWeight.BOLD),
-            content=ft.Text(message),
+            title=ft.Text("รีเซ็ตรหัสผ่านพนักงาน", weight=ft.FontWeight.BOLD),
+            content=ft.Container(
+                width=400,
+                content=ft.Column(tight=True, spacing=10, controls=[new_password_input])
+            ),
             actions=[
-                ft.ElevatedButton("ตกลง", on_click=lambda e: self._close_dialog(dialog))
+                ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
+                create_button("ยืนยันเปลี่ยนรหัส", bg_color=ThemeColors.AMBER_DARK, on_click=submit_reset)
             ]
         )
-        self._open_dialog(dialog)
+        self._show_dialog(dialog)
 
-    def _open_dialog(self, dialog: ft.AlertDialog):
-        try:
-            if hasattr(self.page_ref, "show_dialog"):
-                self.page_ref.show_dialog(dialog)
-            elif hasattr(self.page_ref, "open"):
-                self.page_ref.open(dialog)
-            else:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
-        except Exception:
-            try:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
-            except Exception:
-                pass
+    def _show_info_dialog(self, title: str, msg: str):
+        dialog = ft.AlertDialog(
+            title=ft.Text(title, weight=ft.FontWeight.BOLD),
+            content=ft.Text(msg),
+            actions=[ft.TextButton("ตกลง", on_click=lambda e: self._close_dialog(dialog))]
+        )
+        self._show_dialog(dialog)
+
+    def _show_dialog(self, dialog: ft.AlertDialog):
+        open_dialog(self.page_ref, dialog)
 
     def _close_dialog(self, dialog: ft.AlertDialog = None):
-        try:
-            if hasattr(self.page_ref, "pop_dialog"):
-                self.page_ref.pop_dialog()
-            elif hasattr(self.page_ref, "close"):
-                self.page_ref.close(dialog)
-            elif dialog is not None:
-                dialog.open = False
-                self.page_ref.update()
-        except Exception:
-            if dialog is not None:
-                dialog.open = False
-                try:
-                    self.page_ref.update()
-                except Exception:
-                    pass
+        close_dialog(self.page_ref, dialog)
+        self._update_ui()
 
     def _update_ui(self):
         try:

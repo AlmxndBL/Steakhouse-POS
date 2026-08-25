@@ -2,49 +2,20 @@ import flet as ft
 from database.connection import SessionLocal
 from database.models import TableStatus
 from services.table_service import TableService
-from utils.navigation import navigate_to
+from components.theme import ThemeColors, create_card, create_badge, create_button
+from components.admin_shell import AdminShell
 from utils.validators import Validator
+from utils.dialogs import open_dialog, close_dialog
 
 class AdminTableView(ft.View):
     def __init__(self, page: ft.Page):
         self.page_ref = page
-        user_name = page.session.store.get("user_name") or "ผู้ดูแลระบบ"
-
-        # Theme Colors
-        primary_color = ft.Colors.BLUE_900
-        bg_color = ft.Colors.BLUE_GREY_50
-        card_bg = ft.Colors.WHITE
-
-        # Header Navigation
-        nav_header = ft.Container(
-            padding=ft.Padding.symmetric(horizontal=30, vertical=18),
-            bgcolor=primary_color,
-            shadow=ft.BoxShadow(spread_radius=1, blur_radius=5, color=ft.Colors.BLACK12),
-            content=ft.Row(
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                controls=[
-                    ft.Row(
-                        spacing=15,
-                        controls=[
-                            ft.IconButton(ft.Icons.ARROW_BACK, icon_color=ft.Colors.WHITE, on_click=lambda e: navigate_to(self.page_ref, "/admin")),
-                            ft.Text("จัดการผังโต๊ะอาหาร & โซน (Table Management)", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
-                        ]
-                    ),
-                    ft.ElevatedButton(
-                        "+ เพิ่มโต๊ะใหม่",
-                        icon=ft.Icons.TABLE_RESTAURANT,
-                        style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=8)),
-                        on_click=self._open_add_table_dialog
-                    )
-                ]
-            )
-        )
 
         # Table Data Table
         self.table_table = ft.DataTable(
-            heading_row_color=ft.Colors.GREY_100,
-            heading_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-            data_row_color={"hovered": ft.Colors.BLUE_50},
+            heading_row_color=ThemeColors.SURFACE_HOVER,
+            heading_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN, size=13),
+            data_row_color={"hovered": f"{ThemeColors.SAPPHIRE}11"},
             border_radius=8,
             columns=[
                 ft.DataColumn(ft.Text("หมายเลขโต๊ะ")),
@@ -56,44 +27,62 @@ class AdminTableView(ft.View):
             rows=[]
         )
 
-        content_body = ft.Container(
-            expand=True,
-            padding=30,
-            content=ft.Card(
-                elevation=2,
-                shape=ft.RoundedRectangleBorder(radius=12),
-                content=ft.Container(
-                    bgcolor=card_bg,
-                    padding=25,
-                    expand=True,
-                    content=ft.Column(
-                        expand=True,
-                        spacing=15,
+        header_actions = [
+            create_button(
+                "+ เพิ่มโต๊ะใหม่",
+                icon=ft.Icons.ADD_ROUNDED,
+                bg_color=ThemeColors.EMERALD,
+                on_click=self._open_add_table_dialog
+            )
+        ]
+
+        table_card = create_card(
+            ft.Column(
+                expand=True,
+                spacing=16,
+                controls=[
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
-                            ft.Row(
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            ft.Column(
+                                spacing=2,
                                 controls=[
-                                    ft.Text("ผังโต๊ะทั้งหมดในร้านอาหาร", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                    ft.Text("คลิกไอคอนดินสอ เพื่อแก้ไขจำนวนที่นั่ง/โซน หรือไอคอนถังขยะ เพื่อลบโต๊ะ", size=13, color=ft.Colors.GREY_600)
+                                    ft.Text("ผังโต๊ะทั้งหมดในร้านอาหาร", size=16, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN),
+                                    ft.Text("คลิกไอคอนดินสอ เพื่อแก้ไขจำนวนที่นั่ง/โซน หรือไอคอนถังขยะ เพื่อลบโต๊ะ", size=12, color=ThemeColors.TEXT_MUTED)
                                 ]
                             ),
-                            ft.Container(expand=True, content=ft.ListView([self.table_table], expand=True))
+                            ft.ElevatedButton(
+                                "รีเฟรชผังโต๊ะ",
+                                icon=ft.Icons.REFRESH_ROUNDED,
+                                style=ft.ButtonStyle(
+                                    bgcolor=ThemeColors.SURFACE_WHITE,
+                                    color=ThemeColors.TEXT_MAIN,
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                    side=ft.BorderSide(1, ThemeColors.BORDER_LIGHT)
+                                ),
+                                on_click=lambda e: self._load_table_data()
+                            )
                         ]
-                    )
-                )
-            )
+                    ),
+                    ft.Divider(height=1, color=ThemeColors.BORDER_LIGHT),
+                    ft.Container(expand=True, content=ft.ListView([self.table_table], expand=True))
+                ]
+            ),
+            padding=20
+        )
+
+        shell = AdminShell(
+            page=page,
+            current_route="/admin/tables",
+            title="ผังโต๊ะ & โซนที่นั่ง (Table & Floor Plan)",
+            subtitle="จัดสรรผังโต๊ะอาหาร กำหนดจำนวนที่นั่ง และจัดการโซน Indoor / Terrace / VIP",
+            content_control=table_card,
+            header_actions=header_actions
         )
 
         super().__init__(
             route="/admin/tables",
-            controls=[
-                ft.Column(
-                    expand=True,
-                    spacing=0,
-                    controls=[nav_header, content_body]
-                )
-            ],
-            bgcolor=bg_color,
+            controls=[shell],
             padding=0,
             spacing=0
         )
@@ -106,37 +95,32 @@ class AdminTableView(ft.View):
             tables = TableService.get_tables(db)
             self.table_table.rows.clear()
             for t in tables:
-                status_color = ft.Colors.GREEN_700 if t.status == TableStatus.VACANT else ft.Colors.ORANGE_800
-                status_bg = ft.Colors.GREEN_50 if t.status == TableStatus.VACANT else ft.Colors.ORANGE_50
+                status_color = ThemeColors.EMERALD if t.status == TableStatus.VACANT else ThemeColors.AMBER_DARK
+                status_bg = f"{ThemeColors.EMERALD}18" if t.status == TableStatus.VACANT else f"{ThemeColors.AMBER_DARK}18"
                 status_text = "โต๊ะว่าง" if t.status == TableStatus.VACANT else "มีลูกค้า"
                 table_id = t.id
 
                 row = ft.DataRow(
                     cells=[
-                        ft.DataCell(ft.Text(t.table_number, weight=ft.FontWeight.BOLD)),
-                        ft.DataCell(ft.Text(t.zone)),
-                        ft.DataCell(ft.Text(f"{t.capacity} ที่นั่ง", weight=ft.FontWeight.W_500)),
+                        ft.DataCell(ft.Text(t.table_number, weight=ft.FontWeight.BOLD, color=ThemeColors.TEXT_MAIN)),
+                        ft.DataCell(create_badge(t.zone or "Indoor", f"{ThemeColors.SAPPHIRE}18", ThemeColors.SAPPHIRE)),
+                        ft.DataCell(ft.Text(f"{t.capacity} ที่นั่ง", weight=ft.FontWeight.W_500, color=ThemeColors.TEXT_MAIN)),
                         ft.DataCell(
-                            ft.Container(
-                                content=ft.Text(status_text, size=12, color=status_color, weight=ft.FontWeight.BOLD),
-                                bgcolor=status_bg,
-                                padding=ft.Padding.symmetric(horizontal=10, vertical=5),
-                                border_radius=12
-                            )
+                            create_badge(status_text, status_bg, status_color)
                         ),
                         ft.DataCell(
                             ft.Row(
-                                spacing=5,
+                                spacing=4,
                                 controls=[
                                     ft.IconButton(
-                                        ft.Icons.EDIT, 
-                                        icon_color=ft.Colors.BLUE_700, 
+                                        ft.Icons.EDIT_ROUNDED, 
+                                        icon_color=ThemeColors.SAPPHIRE, 
                                         tooltip="แก้ไขโต๊ะ", 
                                         on_click=lambda e, tid=table_id: self._open_edit_table_dialog(tid)
                                     ),
                                     ft.IconButton(
-                                        ft.Icons.DELETE_OUTLINE, 
-                                        icon_color=ft.Colors.RED_700, 
+                                        ft.Icons.DELETE_OUTLINE_ROUNDED, 
+                                        icon_color=ThemeColors.CRIMSON, 
                                         tooltip="ลบโต๊ะ", 
                                         on_click=lambda e, tid=table_id: self._confirm_delete_table(tid)
                                     )
@@ -210,7 +194,7 @@ class AdminTableView(ft.View):
             ),
             actions=[
                 ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
-                ft.ElevatedButton("บันทึกโต๊ะ", style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE), on_click=submit)
+                create_button("บันทึกโต๊ะ", bg_color=ThemeColors.EMERALD, on_click=submit)
             ]
         )
         self._open_dialog(dialog)
@@ -262,7 +246,7 @@ class AdminTableView(ft.View):
                 try:
                     TableService.update_table(
                         db_inner,
-                        table_id=table_id,
+                        table_id=table.id,
                         table_number=t_res.value,
                         capacity=c_res.value,
                         zone=zone_dropdown.value or "Indoor"
@@ -276,14 +260,14 @@ class AdminTableView(ft.View):
                     db_inner.close()
 
             dialog = ft.AlertDialog(
-                title=ft.Text(f"แก้ไขโต๊ะ [{table.table_number}]", weight=ft.FontWeight.BOLD),
+                title=ft.Text(f"แก้ไขโต๊ะ: {table.table_number}", weight=ft.FontWeight.BOLD),
                 content=ft.Container(
                     width=400,
                     content=ft.Column([num_input, zone_dropdown, cap_input], spacing=12, tight=True)
                 ),
                 actions=[
                     ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
-                    ft.ElevatedButton("บันทึกการแก้ไข", style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE), on_click=submit)
+                    create_button("บันทึกการแก้ไข", bg_color=ThemeColors.SAPPHIRE, on_click=submit)
                 ]
             )
             self._open_dialog(dialog)
@@ -291,17 +275,15 @@ class AdminTableView(ft.View):
             db.close()
 
     def _confirm_delete_table(self, table_id: int):
-        def delete(e_del):
+        def delete(e):
             db = SessionLocal()
             try:
                 success = TableService.delete_table(db, table_id)
                 self._close_dialog(dialog)
-                if success:
-                    self._load_table_data()
+                if not success:
+                    self._show_info_dialog("ไม่สามารถลบได้", "โต๊ะนี้มีลูกค้ากำลังใช้งานหรือมีออเดอร์ค้างอยู่")
                 else:
-                    self._show_info_dialog("ไม่สามารถลบได้", "ไม่พบโต๊ะ หรือมีออเดอร์ค้างอยู่ที่โต๊ะนี้")
-            except Exception as err:
-                self._show_info_dialog("เกิดข้อผิดพลาด", str(err))
+                    self._load_table_data()
             finally:
                 db.close()
 
@@ -310,55 +292,25 @@ class AdminTableView(ft.View):
             content=ft.Text("คุณแน่ใจหรือไม่ว่าต้องการลบโต๊ะนี้ออกจากระบบ?"),
             actions=[
                 ft.TextButton("ยกเลิก", on_click=lambda e: self._close_dialog(dialog)),
-                ft.ElevatedButton("ยืนยันลบ", style=ft.ButtonStyle(bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE), on_click=delete)
+                create_button("ยืนยันลบ", bg_color=ThemeColors.CRIMSON, on_click=delete)
             ]
         )
         self._open_dialog(dialog)
 
-    def _show_info_dialog(self, title: str, message: str):
+    def _show_info_dialog(self, title: str, msg: str):
         dialog = ft.AlertDialog(
             title=ft.Text(title, weight=ft.FontWeight.BOLD),
-            content=ft.Text(message),
-            actions=[
-                ft.ElevatedButton("ตกลง", on_click=lambda e: self._close_dialog(dialog))
-            ]
+            content=ft.Text(msg),
+            actions=[ft.TextButton("ตกลง", on_click=lambda e: self._close_dialog(dialog))]
         )
         self._open_dialog(dialog)
 
     def _open_dialog(self, dialog: ft.AlertDialog):
-        try:
-            if hasattr(self.page_ref, "show_dialog"):
-                self.page_ref.show_dialog(dialog)
-            elif hasattr(self.page_ref, "open"):
-                self.page_ref.open(dialog)
-            else:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
-        except Exception:
-            try:
-                self.page_ref.overlay.append(dialog)
-                dialog.open = True
-                self.page_ref.update()
-            except Exception:
-                pass
+        open_dialog(self.page_ref, dialog)
 
     def _close_dialog(self, dialog: ft.AlertDialog = None):
-        try:
-            if hasattr(self.page_ref, "pop_dialog"):
-                self.page_ref.pop_dialog()
-            elif hasattr(self.page_ref, "close"):
-                self.page_ref.close(dialog)
-            elif dialog is not None:
-                dialog.open = False
-                self.page_ref.update()
-        except Exception:
-            if dialog is not None:
-                dialog.open = False
-                try:
-                    self.page_ref.update()
-                except Exception:
-                    pass
+        close_dialog(self.page_ref, dialog)
+        self._update_ui()
 
     def _update_ui(self):
         try:
