@@ -52,7 +52,7 @@
 
 - **UI & Frontend Framework:** [Python Flet 0.86.5](https://flet.dev/) (Flutter-powered Native GUI & Web Engine)
 - **Backend Language:** Python 3.11+
-- **Database:** PostgreSQL (Docker) / SQLite Local (`pos_data.db`)
+- **Database:** PostgreSQL (Docker or local PostgreSQL server)
 - **ORM:** SQLAlchemy
 - **Containerization:** Docker & Docker Compose (Multi-stage build)
 - **Security:** `bcrypt`, `pydantic`, `cryptography`
@@ -70,12 +70,13 @@ POS flet/
 ├── Dockerfile                 # Multi-stage Python 3.11 Image Definition
 ├── main.py                    # App Entry Point & RBAC Route Guard
 │
-├── database/                  # การเชื่อมต่อฐานข้อมูลและ Data Seeder
+├── app/                       # Application package
+│   ├── database/              # การเชื่อมต่อฐานข้อมูลและ Data Seeder
 │   ├── connection.py          # SQLAlchemy SessionLocal
 │   ├── models.py              # Models (User, Table, Menu, BOM, Lot, Order)
 │   └── seed.py                # Database Seeder & Auto Migration
 │
-├── views/                     # หน้าจอแยกตาม Workspace
+│   ├── views/                 # หน้าจอแยกตาม Workspace
 │   ├── login_view.py          # หน้า Login + 1-Click Persona Switcher
 │   ├── admin_dashboard_view.py# แดชบอร์ดผู้บริหาร
 │   ├── admin_menu_view.py     # จัดการเมนูอาหาร (/admin/menus)
@@ -87,7 +88,7 @@ POS flet/
 │   ├── pos_main_view.py       # ระบบรับออเดอร์และคิดเงิน (/pos)
 │   └── kds_view.py            # จอคิวครัว KDS (/kds)
 │
-├── services/                  # Business Logic & Engines
+│   ├── services/              # Business Logic & Engines
 │   ├── auth_service.py        # Bcrypt Authentication
 │   ├── bom_engine.py          # Recipe BOM & FIFO Lot Deduction
 │   ├── order_service.py       # Order & Payment Calculations
@@ -96,24 +97,22 @@ POS flet/
 │   ├── staff_service.py       # Staff CRUD & Password Reset
 │   └── table_service.py       # Table CRUD & Seating Layout
 │
-├── components/                # Reusable UI & Dialogs (E-Receipt, Modifiers)
-└── tests/                     # Automated Sandbox Test Suite (16/16 Passed)
+│   ├── components/            # Reusable UI & Dialogs
+│   └── utils/                 # Navigation, dialogs และ validators
+├── docs/                      # Task checklist และ agent prompts
+└── tests/                     # Automated Sandbox Test Suite (58/58 Passed)
 ```
 
 ---
 
 ## 🚀 การติดตั้งและเริ่มใช้งาน (Getting Started)
 
-### 🐳 วิธีที่ 1: รันด้วย Docker (แนะนำที่สุด)
-ติดตั้ง [Docker Desktop](https://www.docker.com/) แล้วรันคำสั่ง:
-```bash
-docker-compose up -d --build
+### 💻 วิธีที่ 1: รันในเครื่องแบบ Local
+ต้องมี PostgreSQL 15+ ทำงานอยู่ก่อน แล้วตั้งค่า `DATABASE_URL` ให้ชี้ไปยังฐานข้อมูลนั้น
+
+```powershell
+$env:DATABASE_URL="postgresql://posadmin:pospassword@localhost:5432/pos_db"
 ```
-เข้าใช้งานผ่าน Web Browser ได้ทันทีที่: **[http://localhost:8000](http://localhost:8000)**
-
----
-
-### 💻 วิธีที่ 2: รันในเครื่องแบบ Native Python
 1. ติดตั้ง Python 3.11+
 2. ติดตั้ง Dependencies:
    ```bash
@@ -123,6 +122,36 @@ docker-compose up -d --build
    ```bash
    python main.py
    ```
+4. รันชุดทดสอบ:
+   ```bash
+   python tests/run_all_tests.py
+   ```
+
+ระบบใช้ PostgreSQL โดยกำหนด `DATABASE_URL` ใน environment; Docker Compose เตรียมฐานข้อมูลสำหรับการพัฒนาและสาธิตไว้ให้แล้ว
+
+### 🐳 วิธีที่ 2: รันด้วย Docker (แนะนำสำหรับ Tester)
+ติดตั้ง [Docker Desktop](https://www.docker.com/) แล้วรันคำสั่ง:
+```bash
+docker compose up -d --build
+```
+เข้าใช้งานผ่าน Web Browser ได้ทันทีที่: **[http://localhost:8000](http://localhost:8000)**
+
+ตรวจสอบสถานะบริการ:
+
+```bash
+docker compose ps
+docker compose exec -T db pg_isready -U posadmin -d pos_db
+```
+
+หยุดบริการโดยเก็บข้อมูลไว้:
+
+```bash
+docker compose down
+```
+
+---
+
+Docker mode ใช้ PostgreSQL และ Flet Web ที่ `http://localhost:8000` เหมาะสำหรับสาธิตแบบหลายบริการ แต่ยังไม่ใช่ managed cloud deployment
 
 ---
 
@@ -140,12 +169,30 @@ docker-compose up -d --build
 
 ---
 
+## 🎬 Demo Flow สำหรับการนำเสนอ
+
+```text
+Login ด้วย demo account
+→ เลือกโต๊ะจาก /tables
+→ เพิ่มเมนูและ modifier ใน /pos
+→ ส่งรายการเข้า /kds
+→ เปลี่ยนสถานะอาหาร
+→ กลับไป checkout และสร้าง E-Receipt
+→ ตรวจยอดขายและ CSV ที่ /admin/reports
+```
+
+บัญชี demo มีไว้สำหรับ local/classroom demonstration เท่านั้น ไม่ควรใช้เป็น production credentials
+
 ## 🧪 การทดสอบระบบ (Automated Sandbox Test Suite)
 
-รันชุดทดสอบอัตโนมัติครอบคลุมทั้งระบบ (16/16 Tests Passed 100%):
+รันชุดทดสอบอัตโนมัติครอบคลุมทั้งระบบ (58/58 Tests Passed 100%):
 ```bash
-docker-compose exec -e PYTHONPATH=/app -T app python tests/run_all_tests.py
+python tests/run_all_tests.py
 ```
+
+ผล verification ล่าสุด: `Ran 58 tests`, `OK`, `Failures: 0`, `Errors: 0`
+
+รายละเอียด task สำหรับการพัฒนาต่ออยู่ที่ [`docs/tasks/README.md`](docs/tasks/README.md)
 
 ---
 *Developed with Python, Flet & Modern Software Engineering Standards.*

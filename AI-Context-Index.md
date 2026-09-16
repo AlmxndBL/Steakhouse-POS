@@ -12,10 +12,11 @@
 - **AI Agent Protocol:** Apex-core v4.0 (Clean `.apex` Container Architecture)
 - **Tech Stack หลัก:**
   - **Core Framework:** Python 3.11+ + Flet 0.86.5 (GUI & Web App)
-  - **Database & ORM:** SQLite (`pos_data.db` Local) / PostgreSQL (Docker) + SQLAlchemy ORM
+  - **Database & ORM:** PostgreSQL + SQLAlchemy ORM
   - **Security & Auth:** Username + Password (bcrypt hashing) + RBAC 5 Roles + 1-Click Dev Persona Switcher
   - **Infrastructure:** Docker Compose (Multi-stage build, Port 8000)
-- **Environment Status:** Development & Sandbox Tested (100% Pass)
+- **Environment Status:** Classroom / Local-first, Sandbox Tested (36/36 Pass)
+- **Deployment Note:** ใช้ PostgreSQL ผ่าน Docker Compose หรือ PostgreSQL ในเครื่องสำหรับการเรียนและการสาธิต; ไม่เพิ่ม managed cloud architecture
 
 ---
 
@@ -35,12 +36,13 @@ POS flet/
 ├── main.py                    # 🚦 App Entrypoint & RBAC Route Dispatcher
 ├── requirements.txt           # 📦 Python Dependencies
 │
-├── database/                  # 🗄️ ฐานข้อมูลและ Seeding
+├── app/                       # 📦 Application package
+├── app/database/              # 🗄️ ฐานข้อมูลและ Seeding
 │   ├── connection.py          # SQLAlchemy SessionLocal & Engine setup
 │   ├── models.py              # Database Models (User, Table, Menu, BOM, Lot, Order)
 │   └── seed.py                # Database Seeder & Defensive Migration Scripts
 │
-├── views/                     # 🖥️ หน้าจอหลักแยกตาม Workspace (Separation of Concerns)
+├── app/views/                 # 🖥️ หน้าจอหลักแยกตาม Workspace (Separation of Concerns)
 │   ├── login_view.py          # 🔑 หน้า Login + 1-Click Dev Persona Quick Login
 │   ├── admin_dashboard_view.py# 👑 Executive Admin Dashboard & Summary KPIs
 │   ├── admin_menu_view.py     # 🥩 จัดการเมนูอาหาร & หมวดหมู่ (/admin/menus)
@@ -52,7 +54,7 @@ POS flet/
 │   ├── pos_main_view.py       # 💵 ตะกร้าสั่งอาหาร & คิดเงิน (/pos)
 │   └── kds_view.py            # 👨‍🍳 จอคิวครัวสำหรับเชฟ (/kds)
 │
-├── services/                  # ⚙️ Business Domain Engines & Logic
+├── app/services/               # ⚙️ Business Domain Engines & Logic
 │   ├── auth_service.py        # Bcrypt Authentication & RBAC Checks
 │   ├── bom_engine.py          # Recipe BOM Calculation & FIFO Stock Lot Deduction
 │   ├── order_service.py       # Order Lifecycle, Modifiers & Checkout Calculations
@@ -61,17 +63,19 @@ POS flet/
 │   ├── staff_service.py       # Staff Lifecycle, Duplicate Username Check & Password Reset
 │   └── table_service.py       # Table Management & Seating Layout
 │
-├── components/                # 🧩 Reusable Dumb & Modal Components
+├── app/components/            # 🧩 Reusable Dumb & Modal Components
 │   ├── ereceipt_modal.py      # E-Receipt Viewer & Dialog
 │   ├── modifier_dialog.py     # Steak Doneness & Sauce Customization Modal
 │   └── payment_dialog.py      # Cash / QR PromptPay Checkout Modal
 │
-├── utils/                     # 🛠️ Utility Functions & Helpers
+├── app/utils/                 # 🛠️ Utility Functions & Helpers
 │   ├── export_csv.py          # CSV File Export Engine
 │   └── formatters.py          # Currency & Date/Time Formatting
 │
 └── tests/                     # 🧪 Unit & Integration Test Suite
 ```
+
+> หมายเหตุ: `main.py` อยู่ที่ project root เป็น entrypoint และ bootstrap `app/` เป็น source package ก่อนโหลด views/services ภายใน
 
 ---
 

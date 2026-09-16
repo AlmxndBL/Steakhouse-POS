@@ -1,3 +1,13 @@
+import os
+import sys
+import logging
+
+# Keep the application package as the source root while preserving the
+# existing intra-package imports used by the moved modules.
+APP_PACKAGE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app")
+if APP_PACKAGE_ROOT not in sys.path:
+    sys.path.insert(0, APP_PACKAGE_ROOT)
+
 import flet as ft
 from database.seed import seed_data
 from views.login_view import LoginView
@@ -87,8 +97,9 @@ def main(page: ft.Page):
 
         try:
             page.update()
-        except Exception:
-            pass
+        except RuntimeError as err:
+            logging.getLogger(__name__).warning("UI route update failed: %s", err)
+            page.snack_bar = ft.SnackBar(ft.Text("ไม่สามารถแสดงหน้านี้ได้ กรุณาลองใหม่อีกครั้ง"), open=True)
 
     def view_pop(e):
         if len(page.views) > 1:
@@ -103,7 +114,6 @@ def main(page: ft.Page):
     navigate_to(page, "/login")
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 8000))
     exports_path = os.path.join(os.getcwd(), "exports")
     os.makedirs(exports_path, exist_ok=True)

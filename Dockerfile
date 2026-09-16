@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Install runtime dependencies for psycopg2 and other packages if needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 fonts-thai-tlwg \
+    libpq5 postgresql-client fonts-thai-tlwg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy wheels from builder and install
@@ -44,8 +44,8 @@ ENV PATH="/home/appuser/.local/bin:${PATH}"
 
 EXPOSE 8000
 
-# Healthcheck using python (curl not available in slim)
+# Healthcheck verifies the configured database, not only the web process.
 HEALTHCHECK --interval=30s --timeout=30s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/')" || exit 1
+    CMD python healthcheck.py || exit 1
 
 CMD ["python", "main.py"]

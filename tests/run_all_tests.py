@@ -7,6 +7,12 @@ APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if APP_ROOT not in sys.path:
     sys.path.insert(0, APP_ROOT)
 
+# The application modules now live under app/, while their internal imports
+# intentionally remain package-oriented (database, services, views, utils).
+APP_PACKAGE_ROOT = os.path.join(APP_ROOT, "app")
+if APP_PACKAGE_ROOT not in sys.path:
+    sys.path.insert(0, APP_PACKAGE_ROOT)
+
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")

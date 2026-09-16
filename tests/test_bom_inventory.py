@@ -39,6 +39,13 @@ class TestBOMInventory(unittest.TestCase):
         
         initial_stock = sum(float(lot.remaining_quantity) for lot in ing.lots if not lot.is_depleted)
         wastage_qty = 50.0
+        if initial_stock < wastage_qty:
+            BOMEngine.receive_stock(
+                self.db, ing.id, f"WASTE-FIXTURE-{date.today().strftime('%Y%m%d%H%M%S%f')}",
+                wastage_qty, float(ing.cost_per_unit or 0), date.today() + timedelta(days=30), user_id=1
+            )
+            self.db.refresh(ing)
+            initial_stock = sum(float(lot.remaining_quantity) for lot in ing.lots if not lot.is_depleted)
         
         success = BOMEngine.record_wastage(self.db, ing.id, wastage_qty, reason="Spilled on floor", user_id=1)
         self.assertTrue(success)

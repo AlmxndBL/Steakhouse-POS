@@ -1,21 +1,31 @@
 import os
 import unittest
-from database.connection import SessionLocal, DB_PATH
-from database.models import OrderType
+from database.connection import SessionLocal, DATABASE_URL
+from database.models import OrderType, Ingredient
 from services.order_service import OrderService
 from services.backup_service import BackupService
+from services.bom_engine import BOMEngine
 from services.printer_service import PrinterService
 
 class TestProductionReadiness(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        # Keep these formatting/precision tests independent from stock consumed
+        # by earlier tests while exercising the real receive-stock path.
+        for ingredient in self.db.query(Ingredient).all():
+            current = sum(float(lot.remaining_quantity) for lot in ingredient.lots if not lot.is_depleted)
+            if current < 1000.0:
+                BOMEngine.receive_stock(
+                    self.db, ingredient.id, f"TEST-{ingredient.id}", 1000.0 - current,
+                    float(ingredient.cost_per_unit or 0), None, user_id=1
+                )
 
     def tearDown(self):
         self.db.close()
 
     def test_database_backup_service(self):
-        """Test that BackupService successfully creates a valid SQLite backup and lists it."""
-        backup_file = BackupService.create_backup(db_path=DB_PATH)
+        """Test that BackupService creates a PostgreSQL custom-format backup."""
+        backup_file = BackupService.create_backup(database_url=DATABASE_URL)
         self.assertTrue(os.path.exists(backup_file))
         self.assertGreater(os.path.getsize(backup_file), 0)
 
