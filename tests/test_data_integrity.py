@@ -2,7 +2,7 @@ import unittest
 from sqlalchemy import inspect, text
 
 from database.connection import SessionLocal, engine
-from database.models import MenuItem, OrderStatus, OrderType
+from database.models import MenuItem, OrderStatus, OrderType, User
 from database.seed import SCHEMA_VERSION, seed_data
 from services.order_service import OrderService
 
@@ -30,12 +30,13 @@ class TestDataIntegrity(unittest.TestCase):
         db = SessionLocal()
         try:
             menu = db.query(MenuItem).filter(MenuItem.is_active == True).first()
-            order = OrderService.create_or_get_open_order(db, None, OrderType.TAKEAWAY, "integrity test", 1)
+            owner_id = db.query(User).filter_by(username="owner").one().id
+            order = OrderService.create_or_get_open_order(db, None, OrderType.TAKEAWAY, "integrity test", owner_id)
             OrderService.add_item_to_order(db, order.id, menu.id, qty=1)
-            paid = OrderService.checkout_order(db, order.id, "เงินสด (CASH)", 0.0, 1)
+            paid = OrderService.checkout_order(db, order.id, "เงินสด (CASH)", 0.0, owner_id)
             self.assertEqual(paid.status, OrderStatus.PAID)
             with self.assertRaises(ValueError):
-                OrderService.checkout_order(db, order.id, "เงินสด (CASH)", 0.0, 1)
+                OrderService.checkout_order(db, order.id, "เงินสด (CASH)", 0.0, owner_id)
         finally:
             db.close()
 

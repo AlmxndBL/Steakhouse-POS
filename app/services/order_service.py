@@ -329,6 +329,13 @@ class OrderService:
         discount_amount: float,
         user_id: int
     ) -> Order:
+        actor = db.query(User).filter(
+            User.id == user_id,
+            User.is_active == True,
+        ).first()
+        if not actor or actor.role not in {UserRole.OWNER, UserRole.MANAGER, UserRole.CASHIER}:
+            raise PermissionError("ผู้ใช้ไม่มีสิทธิ์รับชำระเงิน")
+
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order or order.status != OrderStatus.OPEN:
             raise ValueError("สถานะบิลไม่ถูกต้องสำหรับชำระเงิน (ต้องเป็น OPEN เท่านั้น)")
@@ -343,8 +350,12 @@ class OrderService:
         if existing_sale:
             raise ValueError("บิลนี้ถูกตัดสต็อกแล้ว ไม่สามารถชำระเงินซ้ำได้")
 
-        approver = db.query(User).filter(User.id == user_id).first()
-        OrderService.validate_discount_approval(discount_amount, approver_role=approver.role if approver else None)
+        discount = Decimal(str(discount_amount or 0))
+        subtotal = Decimal(str(order.subtotal or 0))
+        if not discount.is_finite() or discount < 0 or discount > subtotal:
+            raise ValueError("ส่วนลดต้องอยู่ระหว่าง 0 ถึงยอดรวมของบิล")
+
+        OrderService.validate_discount_approval(discount, approver_role=actor.role)
 
         # Recalculate totals with discount
         OrderService._recalculate_order_totals(db, order, discount=discount_amount)

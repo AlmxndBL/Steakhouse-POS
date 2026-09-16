@@ -2,11 +2,17 @@ import unittest
 import sys
 import os
 
-# Ensure app root is in sys.path
 APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if APP_ROOT not in sys.path:
     sys.path.insert(0, APP_ROOT)
 
+from tests.database_safety import require_isolated_test_database
+
+# This legacy suite writes fixtures and exercises checkout. Refuse to import
+# application/database modules until the isolated test endpoint is confirmed.
+require_isolated_test_database()
+
+# Ensure app root is in sys.path
 # The application modules now live under app/, while their internal imports
 # intentionally remain package-oriented (database, services, views, utils).
 APP_PACKAGE_ROOT = os.path.join(APP_ROOT, "app")

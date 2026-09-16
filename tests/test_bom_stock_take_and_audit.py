@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, date, timedelta, timezone
 from database.connection import SessionLocal
-from database.models import Ingredient, StockLot, StockTransaction, StockTxType, AuditLog, MenuItem, RecipeBOM
+from database.models import Ingredient, StockLot, StockTransaction, StockTxType, AuditLog, MenuItem, RecipeBOM, Table, User
 from services.bom_engine import BOMEngine
 from services.menu_service import MenuService
 from services.table_service import TableService
@@ -9,23 +9,27 @@ from services.table_service import TableService
 class TestBOMStockTakeAndAudit(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        self.user_id = self.db.query(User).filter_by(username="owner").one().id
 
     def tearDown(self):
         self.db.close()
 
     def test_table_and_menu_get_by_id(self):
         """Test TableService.get_table_by_id and MenuService.get_menu_item_by_id"""
-        t = TableService.get_table_by_id(self.db, 1)
-        self.assertIsNotNone(t, "Table ID 1 should exist")
-        self.assertEqual(t.id, 1)
+        expected_table = self.db.query(Table).filter_by(table_number="T01").one()
+        t = TableService.get_table_by_id(self.db, expected_table.id)
+        self.assertIsNotNone(t, "Seeded T01 table should exist")
+        self.assertEqual(t.id, expected_table.id)
 
-        m = MenuService.get_menu_item_by_id(self.db, 1)
-        self.assertIsNotNone(m, "MenuItem ID 1 should exist")
-        self.assertEqual(m.id, 1)
+        expected_menu = self.db.query(MenuItem).filter_by(code="STK001").one()
+        m = MenuService.get_menu_item_by_id(self.db, expected_menu.id)
+        self.assertIsNotNone(m, "Seeded STK001 menu item should exist")
+        self.assertEqual(m.id, expected_menu.id)
 
     def test_menu_item_bom_cost_calculation(self):
         """Test MenuService.get_item_bom_cost returns non-zero cost for steak items with BOM"""
-        cost = MenuService.get_item_bom_cost(self.db, 1)
+        menu = self.db.query(MenuItem).filter_by(code="STK001").one()
+        cost = MenuService.get_item_bom_cost(self.db, menu.id)
         self.assertIsInstance(cost, float)
         self.assertGreaterEqual(cost, 0.0)
 
@@ -46,7 +50,7 @@ class TestBOMStockTakeAndAudit(unittest.TestCase):
             ingredient_id=ing.id,
             new_actual_qty=target_qty,
             reason="ทดสอบนับสต๊อกจริง",
-            user_id=1
+            user_id=self.user_id
         )
 
         self.assertEqual(res["status"], "ADJUSTED")

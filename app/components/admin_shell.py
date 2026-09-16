@@ -120,7 +120,7 @@ class AdminShell(ft.Container):
                                 padding=ft.Padding.symmetric(horizontal=12, vertical=10)
                             ),
                             width=228,
-                            on_click=lambda e: navigate_to(self.page_ref, "/tables")
+                            on_click=lambda e: navigate_to(self.page_ref, "/pos")
                         )
                     ),
                     

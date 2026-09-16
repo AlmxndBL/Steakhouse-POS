@@ -2,7 +2,7 @@ import json
 import unittest
 
 from database.connection import SessionLocal
-from database.models import AuditLog, OrderType, UserRole, OrderStatus, MenuItem
+from database.models import AuditLog, OrderType, UserRole, OrderStatus, MenuItem, User
 from services.order_service import OrderService
 from services.shift_service import ShiftService
 
@@ -10,13 +10,15 @@ from services.shift_service import ShiftService
 class TestShiftAndApprovalControls(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        self.user_id = self.db.query(User).filter_by(username="owner").one().id
+        self.assertIsNotNone(self.user_id, "Seeded owner account is required")
 
     def tearDown(self):
         self.db.close()
 
     def test_shift_reconciliation_records_expected_and_variance(self):
-        ShiftService.start_shift(self.db, user_id=1, opening_float=100.0)
-        result = ShiftService.close_shift(self.db, user_id=1, actual_cash=97.5, reason="ทอนขาด")
+        ShiftService.start_shift(self.db, user_id=self.user_id, opening_float=100.0)
+        result = ShiftService.close_shift(self.db, user_id=self.user_id, actual_cash=97.5, reason="ทอนขาด")
         self.assertEqual(result["opening_float"], 100.0)
         self.assertEqual(result["expected_cash"], 100.0)
         self.assertEqual(result["variance"], -2.5)
@@ -30,22 +32,22 @@ class TestShiftAndApprovalControls(unittest.TestCase):
         self.assertTrue(OrderService.validate_discount_approval(500.01, UserRole.MANAGER))
 
     def test_cancel_requires_reason_and_audits(self):
-        order = OrderService.create_or_get_open_order(self.db, None, OrderType.TAKEAWAY, "cancel test", 1)
+        order = OrderService.create_or_get_open_order(self.db, None, OrderType.TAKEAWAY, "cancel test", self.user_id)
         with self.assertRaises(ValueError):
-            OrderService.cancel_order(self.db, order.id, 1, "")
-        cancelled = OrderService.cancel_order(self.db, order.id, 1, "ลูกค้ายกเลิก")
+            OrderService.cancel_order(self.db, order.id, self.user_id, "")
+        cancelled = OrderService.cancel_order(self.db, order.id, self.user_id, "ลูกค้ายกเลิก")
         self.assertEqual(cancelled.status.value, "CANCELLED")
         event = self.db.query(AuditLog).filter(AuditLog.action == "CANCEL_ORDER", AuditLog.target_id == order.id).first()
         self.assertEqual(json.loads(event.details_json)["reason"], "ลูกค้ายกเลิก")
 
     def test_paid_refund_requires_approval_and_audits(self):
-        order = OrderService.create_or_get_open_order(self.db, None, OrderType.TAKEAWAY, "refund test", 1)
+        order = OrderService.create_or_get_open_order(self.db, None, OrderType.TAKEAWAY, "refund test", self.user_id)
         menu = self.db.query(MenuItem).filter_by(is_active=True).first()
         OrderService.add_item_to_order(self.db, order.id, menu.id, qty=1)
-        OrderService.checkout_order(self.db, order.id, "เงินสด (CASH)", 0.0, 1)
+        OrderService.checkout_order(self.db, order.id, "เงินสด (CASH)", 0.0, self.user_id)
         with self.assertRaises(PermissionError):
-            OrderService.refund_order(self.db, order.id, 1, "ลูกค้าคืนสินค้า", approver_role=UserRole.CASHIER)
-        refunded = OrderService.refund_order(self.db, order.id, 1, "ลูกค้าคืนสินค้า", approver_role=UserRole.MANAGER)
+            OrderService.refund_order(self.db, order.id, self.user_id, "ลูกค้าคืนสินค้า", approver_role=UserRole.CASHIER)
+        refunded = OrderService.refund_order(self.db, order.id, self.user_id, "ลูกค้าคืนสินค้า", approver_role=UserRole.MANAGER)
         self.assertEqual(refunded.status, OrderStatus.CANCELLED)
         event = self.db.query(AuditLog).filter(AuditLog.action == "REFUND_ORDER", AuditLog.target_id == order.id).first()
         self.assertIsNotNone(event)

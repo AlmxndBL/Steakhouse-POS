@@ -1,12 +1,13 @@
 import unittest
 from datetime import date, timedelta
 from database.connection import SessionLocal
-from database.models import Ingredient, StockLot, StockTransaction, StockTxType
+from database.models import Ingredient, StockLot, StockTransaction, StockTxType, User
 from services.bom_engine import BOMEngine
 
 class TestBOMInventory(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        self.user_id = self.db.query(User).filter_by(username="owner").one().id
 
     def tearDown(self):
         self.db.close()
@@ -22,7 +23,7 @@ class TestBOMInventory(unittest.TestCase):
         unit_cost = 1.35
         exp_date = date.today() + timedelta(days=30)
         
-        lot = BOMEngine.receive_stock(self.db, ing.id, lot_number, received_qty, unit_cost, exp_date, user_id=1)
+        lot = BOMEngine.receive_stock(self.db, ing.id, lot_number, received_qty, unit_cost, exp_date, user_id=self.user_id)
         self.assertIsNotNone(lot.id)
         self.assertEqual(float(lot.initial_quantity), received_qty)
         self.assertEqual(float(lot.remaining_quantity), received_qty)
@@ -42,12 +43,12 @@ class TestBOMInventory(unittest.TestCase):
         if initial_stock < wastage_qty:
             BOMEngine.receive_stock(
                 self.db, ing.id, f"WASTE-FIXTURE-{date.today().strftime('%Y%m%d%H%M%S%f')}",
-                wastage_qty, float(ing.cost_per_unit or 0), date.today() + timedelta(days=30), user_id=1
+                wastage_qty, float(ing.cost_per_unit or 0), date.today() + timedelta(days=30), user_id=self.user_id
             )
             self.db.refresh(ing)
             initial_stock = sum(float(lot.remaining_quantity) for lot in ing.lots if not lot.is_depleted)
         
-        success = BOMEngine.record_wastage(self.db, ing.id, wastage_qty, reason="Spilled on floor", user_id=1)
+        success = BOMEngine.record_wastage(self.db, ing.id, wastage_qty, reason="Spilled on floor", user_id=self.user_id)
         self.assertTrue(success)
         
         self.db.refresh(ing)

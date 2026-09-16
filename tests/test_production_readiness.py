@@ -1,7 +1,9 @@
 import os
 import unittest
+from uuid import uuid4
+
 from database.connection import SessionLocal, DATABASE_URL
-from database.models import OrderType, Ingredient
+from database.models import OrderType, Ingredient, MenuItem, Table, TableStatus, User
 from services.order_service import OrderService
 from services.backup_service import BackupService
 from services.bom_engine import BOMEngine
@@ -10,6 +12,8 @@ from services.printer_service import PrinterService
 class TestProductionReadiness(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        self.user_id = self.db.query(User).filter_by(username="owner").one().id
+        self.assertIsNotNone(self.user_id, "Seeded owner account is required")
         # Keep these formatting/precision tests independent from stock consumed
         # by earlier tests while exercising the real receive-stock path.
         for ingredient in self.db.query(Ingredient).all():
@@ -17,7 +21,7 @@ class TestProductionReadiness(unittest.TestCase):
             if current < 1000.0:
                 BOMEngine.receive_stock(
                     self.db, ingredient.id, f"TEST-{ingredient.id}", 1000.0 - current,
-                    float(ingredient.cost_per_unit or 0), None, user_id=1
+                    float(ingredient.cost_per_unit or 0), None, user_id=self.user_id
                 )
 
     def tearDown(self):
@@ -35,22 +39,30 @@ class TestProductionReadiness(unittest.TestCase):
 
     def test_printer_service_receipt_and_kitchen_chit(self):
         """Test formatting customer receipt and kitchen ticket chits."""
-        # Create an open order
+        table = Table(
+            table_number=f"PRINT_{uuid4().hex[:8]}", capacity=2,
+            zone="Test", status=TableStatus.VACANT,
+        )
+        self.db.add(table)
+        self.db.commit()
         order = OrderService.create_or_get_open_order(
-            self.db, table_id=1, order_type=OrderType.DINE_IN, customer_name="โต๊ะ T01", user_id=1
+            self.db, table_id=table.id, order_type=OrderType.DINE_IN,
+            customer_name=table.table_number, user_id=self.user_id
         )
         # Add item
-        item = OrderService.add_item_to_order(self.db, order_id=order.id, menu_item_id=1, qty=2)
+        menu = self.db.query(MenuItem).filter_by(code="STK001").one()
+        OrderService.add_item_to_order(self.db, order_id=order.id, menu_item_id=menu.id, qty=2)
         
         # Test Kitchen Chit formatting
         chit_text = PrinterService.format_kitchen_chit(order)
         self.assertIn("ใบสั่งเข้าครัว", chit_text)
-        self.assertIn("โต๊ะ T01", chit_text)
+        self.assertIn(table.table_number, chit_text)
         self.assertIn("x2", chit_text)
 
         # Checkout order
         paid_order = OrderService.checkout_order(
-            self.db, order_id=order.id, payment_method="เงินสด (CASH)", discount_amount=50.0, user_id=1
+            self.db, order_id=order.id, payment_method="เงินสด (CASH)", discount_amount=50.0,
+            user_id=self.user_id
         )
 
         # Test Customer Receipt formatting
@@ -65,12 +77,18 @@ class TestProductionReadiness(unittest.TestCase):
     def test_strict_financial_decimal_precision(self):
         """Test that OrderService calculation maintains strict precision without floating-point errors."""
         order = OrderService.create_or_get_open_order(
-            self.db, table_id=None, order_type=OrderType.TAKEAWAY, customer_name="ลูกค้า Takeaway", user_id=1
+            self.db, table_id=None, order_type=OrderType.TAKEAWAY,
+            customer_name="ลูกค้า Takeaway", user_id=self.user_id
         )
         # Add 3 items
-        OrderService.add_item_to_order(self.db, order_id=order.id, menu_item_id=1, qty=1) # 450.0
-        OrderService.add_item_to_order(self.db, order_id=order.id, menu_item_id=4, qty=1) # 89.0
-        OrderService.add_item_to_order(self.db, order_id=order.id, menu_item_id=5, qty=1) # 35.0
+        menu_ids = {
+            item.code: item.id
+            for item in self.db.query(MenuItem).filter(MenuItem.code.in_(["STK001", "SID001", "DRK001"]))
+        }
+        self.assertEqual(set(menu_ids), {"STK001", "SID001", "DRK001"})
+        OrderService.add_item_to_order(self.db, order.id, menu_ids["STK001"], qty=1) # 450.0
+        OrderService.add_item_to_order(self.db, order.id, menu_ids["SID001"], qty=1) # 89.0
+        OrderService.add_item_to_order(self.db, order.id, menu_ids["DRK001"], qty=1) # 35.0
         
         self.db.refresh(order)
         expected_subtotal = 450.0 + 89.0 + 35.0 # 574.00
@@ -87,7 +105,8 @@ class TestProductionReadiness(unittest.TestCase):
 
         # Checkout
         OrderService.checkout_order(
-            self.db, order_id=order.id, payment_method="เงินสด (CASH)", discount_amount=0.0, user_id=1
+            self.db, order_id=order.id, payment_method="เงินสด (CASH)", discount_amount=0.0,
+            user_id=self.user_id
         )
 
 if __name__ == '__main__':

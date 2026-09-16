@@ -1,13 +1,14 @@
 import unittest
 import json
 from database.connection import SessionLocal
-from database.models import Order, OrderStatus, OrderType, MenuItem, Table, TableStatus
+from database.models import Order, OrderStatus, OrderType, MenuItem, Table, TableStatus, User
 from services.order_service import OrderService
 from services.receipt_service import ReceiptService
 
 class TestPOSOrderFlow(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        self.user_id = self.db.query(User.id).filter_by(username="owner").one().id
 
     def tearDown(self):
         self.db.close()
@@ -28,7 +29,7 @@ class TestPOSOrderFlow(unittest.TestCase):
             table_id=table.id,
             order_type=OrderType.DINE_IN,
             customer_name=f"โต๊ะ {table.table_number}",
-            user_id=1
+            user_id=self.user_id
         )
         self.assertIsNotNone(order.id)
         self.assertEqual(order.status, OrderStatus.OPEN)
@@ -59,7 +60,7 @@ class TestPOSOrderFlow(unittest.TestCase):
             order_id=order.id,
             payment_method="QR PromptPay",
             discount_amount=discount,
-            user_id=1
+            user_id=self.user_id
         )
         self.assertEqual(updated_order.status, OrderStatus.PAID)
         self.assertEqual(float(updated_order.subtotal), 900.0)

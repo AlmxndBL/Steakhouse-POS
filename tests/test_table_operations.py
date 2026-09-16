@@ -10,6 +10,8 @@ from services.table_service import TableService
 class TestTableOperationAuthorization(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        self.owner_id = self.db.query(User).filter_by(username="owner").one().id
+        self.assertIsNotNone(self.owner_id, "Seeded owner account is required")
 
     def tearDown(self):
         self.db.close()
@@ -31,8 +33,8 @@ class TestTableOperationAuthorization(unittest.TestCase):
         second = Table(table_number=f"AUTH_T2_{suffix}", capacity=2, zone="Test", status=TableStatus.VACANT)
         self.db.add_all([first, second])
         self.db.commit()
-        order = OrderService.create_or_get_open_order(self.db, first.id, OrderType.DINE_IN, "test", 1)
-        moved = TableService.transfer_order(self.db, order.id, second.id, 1)
+        order = OrderService.create_or_get_open_order(self.db, first.id, OrderType.DINE_IN, "test", self.owner_id)
+        moved = TableService.transfer_order(self.db, order.id, second.id, self.owner_id)
         self.assertEqual(moved.table_id, second.id)
         self.db.refresh(first)
         self.db.refresh(second)
@@ -45,10 +47,10 @@ class TestTableOperationAuthorization(unittest.TestCase):
         menu = MenuItem(code=f"TEST_{uuid4().hex[:8]}", name="Split Test Item", price=100.0, category_id=category.id, is_active=True)
         self.db.add(menu)
         self.db.commit()
-        order = OrderService.create_or_get_open_order(self.db, None, OrderType.TAKEAWAY, "test", 1)
+        order = OrderService.create_or_get_open_order(self.db, None, OrderType.TAKEAWAY, "test", self.owner_id)
         item = OrderService.add_item_to_order(self.db, order.id, menu.id, qty=3)
         unit_price = float(item.price_per_unit)
-        new_order = OrderService.split_item_to_new_order(self.db, order.id, item.id, 1, 1)
+        new_order = OrderService.split_item_to_new_order(self.db, order.id, item.id, 1, self.owner_id)
         self.db.refresh(order)
         self.assertEqual(order.items[0].quantity, 2)
         self.assertEqual(new_order.items[0].quantity, 1)
@@ -60,14 +62,14 @@ class TestTableOperationAuthorization(unittest.TestCase):
         secondary_table = Table(table_number=f"MERGE_T2_{suffix}", capacity=2, zone="Test", status=TableStatus.VACANT)
         self.db.add_all([primary_table, secondary_table])
         self.db.commit()
-        primary = OrderService.create_or_get_open_order(self.db, primary_table.id, OrderType.DINE_IN, "primary", 1)
-        secondary = OrderService.create_or_get_open_order(self.db, secondary_table.id, OrderType.DINE_IN, "secondary", 1)
+        primary = OrderService.create_or_get_open_order(self.db, primary_table.id, OrderType.DINE_IN, "primary", self.owner_id)
+        secondary = OrderService.create_or_get_open_order(self.db, secondary_table.id, OrderType.DINE_IN, "secondary", self.owner_id)
         menu = self.db.query(MenuItem).first()
         primary_item = OrderService.add_item_to_order(self.db, primary.id, menu.id, qty=1)
         secondary_item = OrderService.add_item_to_order(self.db, secondary.id, menu.id, qty=2)
         expected_total = float(primary_item.price_per_unit) + float(secondary_item.price_per_unit) * 2
 
-        merged = TableService.merge_orders(self.db, primary.id, secondary.id, 1)
+        merged = TableService.merge_orders(self.db, primary.id, secondary.id, self.owner_id)
         self.db.refresh(primary)
         self.db.refresh(secondary)
         self.assertEqual(merged.id, primary.id)

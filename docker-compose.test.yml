@@ -1,0 +1,40 @@
+name: pos-flet-test
+
+services:
+  test-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: pos_test
+      POSTGRES_PASSWORD: pos_test_only_password
+      POSTGRES_DB: pos_test_db
+    volumes:
+      - pos_test_db_data:/var/lib/postgresql/data
+    networks:
+      - pos-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos_test -d pos_test_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: test
+      DATABASE_URL: postgresql://pos_test:pos_test_only_password@test-db:5432/pos_test_db
+    depends_on:
+      test-db:
+        condition: service_healthy
+    networks:
+      - pos-test-network
+    command: ["python", "tests/run_all_tests.py"]
+
+volumes:
+  pos_test_db_data:
+
+networks:
+  pos-test-network:
+    name: pos-flet-test-network
+    internal: true

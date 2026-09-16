@@ -3,13 +3,14 @@ from datetime import date, timedelta
 from uuid import uuid4
 
 from database.connection import SessionLocal
-from database.models import AuditLog, Ingredient, StockLot
+from database.models import AuditLog, Ingredient, StockLot, User
 from services.bom_engine import BOMEngine
 
 
 class TestInventoryTaskCenter(unittest.TestCase):
     def setUp(self):
         self.db = SessionLocal()
+        self.user_id = self.db.query(User).filter_by(username="owner").one().id
 
     def tearDown(self):
         self.db.close()
@@ -38,7 +39,7 @@ class TestInventoryTaskCenter(unittest.TestCase):
         ingredient = self.db.query(Ingredient).filter(Ingredient.is_active == True).first()
         lot = BOMEngine.receive_stock(
             self.db, ingredient.id, f"RECEIVE_{uuid4().hex[:8]}", 12.5, 3.25,
-            date.today() + timedelta(days=30), user_id=1
+            date.today() + timedelta(days=30), user_id=self.user_id
         )
         self.assertEqual(float(lot.remaining_quantity), 12.5)
         self.assertGreater(float(lot.unit_cost), 0)
@@ -62,7 +63,7 @@ class TestInventoryTaskCenter(unittest.TestCase):
             unit_cost=1.0, expiry_date=date.today() + timedelta(days=30), is_depleted=False
         ))
         self.db.commit()
-        BOMEngine.record_wastage(self.db, ingredient.id, 25.0, "anomaly test", user_id=1)
+        BOMEngine.record_wastage(self.db, ingredient.id, 25.0, "anomaly test", user_id=self.user_id)
         center = BOMEngine.get_inventory_task_center(self.db)
         self.assertTrue(any(row["ingredient_id"] == ingredient.id for row in center["wastage_anomalies"]))
         self.assertTrue(all(row["suggested_quantity"] > 0 for row in center["purchase_suggestions"]))

@@ -12,5 +12,7 @@ venv/
 pos_data.db
 pos_data.db-shm
 pos_data.db-wal
+backups/
+exports/
 .vscode/
 .gemini/
